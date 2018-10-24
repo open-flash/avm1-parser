@@ -1,6 +1,6 @@
 [package]
 name = "avm1-parser"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Charles Samborski <demurgos@demurgos.net>"]
 description = "AVM1 parser"
 documentation = "https://github.com/open-flash/avm1-parser"
