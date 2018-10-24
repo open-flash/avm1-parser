@@ -1,7 +1,7 @@
-use nom::Needed;
+use nom::{IResult as NomResult, Needed};
 
 /// Parse the bit-encoded representation of a bool (1 bit)
-pub fn parse_bool_bits((input_slice, bit_pos): (&[u8], usize)) -> Result<((&[u8], usize), bool), ::nom::Err<(&[u8], usize)>> {
+pub fn parse_bool_bits((input_slice, bit_pos): (&[u8], usize)) -> NomResult<(&[u8], usize), bool> {
   if input_slice.len() < 1 {
     Err(::nom::Err::Incomplete(Needed::Size(1)))
   } else {
@@ -16,12 +16,12 @@ pub fn parse_bool_bits((input_slice, bit_pos): (&[u8], usize)) -> Result<((&[u8]
 
 /// Parse a null-terminated sequence of bytes. The null byte is consumed but not included in the
 /// result.
-pub fn parse_c_string(input: &[u8]) -> Result<(&[u8], String), ::nom::Err<&[u8]>> {
+pub fn parse_c_string(input: &[u8]) -> NomResult<&[u8], String> {
   map!(input, take_until_and_consume!("\x00"), |str: &[u8]| String::from_utf8(str.to_vec()).unwrap())
 }
 
 /// Skip `n` bits
-pub fn skip_bits((input_slice, bit_pos): (&[u8], usize), n: usize) -> Result<((&[u8], usize), ()), ::nom::Err<(&[u8], usize)>> {
+pub fn skip_bits((input_slice, bit_pos): (&[u8], usize), n: usize) -> NomResult<(&[u8], usize), ()> {
   let slice_len: usize = input_slice.len();
   let available_bits: usize = 8 * slice_len - bit_pos;
   let skipped_full_bytes = (bit_pos + n) / 8;
