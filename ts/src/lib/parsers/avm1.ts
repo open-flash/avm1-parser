@@ -1,463 +1,278 @@
+import { ReadableBitStream, ReadableByteStream } from "@open-flash/stream";
 import * as avm1 from "avm1-tree";
+import { Action, ActionType } from "avm1-tree";
 import * as actions from "avm1-tree/actions";
 import { Incident } from "incident";
 import { Uint16, Uint8, UintSize } from "semantic-types";
-import { createIncompleteStreamError } from "../errors/incomplete-stream";
-import { BitStream, ByteStream } from "../stream";
-
-export interface RawIf {
-  action: avm1.ActionType.If;
-  byteOffset: Uint16;
-}
-
-export interface RawJump {
-  action: avm1.ActionType.Jump;
-  byteOffset: Uint16;
-}
-
-// avm1.Action where If is replaced by RawIf and Jump by RawJump
-export type RawAction =
-  actions.Unknown
-  | actions.Add
-  | actions.Add2
-  | actions.And
-  | actions.AsciiToChar
-  | actions.BitAnd
-  | actions.BitLShift
-  | actions.BitOr
-  | actions.BitRShift
-  | actions.BitURShift
-  | actions.BitXor
-  | actions.Call
-  | actions.CallFunction
-  | actions.CallMethod
-  | actions.CastOp
-  | actions.CharToAscii
-  | actions.CloneSprite
-  | actions.ConstantPool
-  | actions.Decrement
-  | actions.DefineFunction
-  | actions.DefineFunction2
-  | actions.DefineLocal
-  | actions.DefineLocal2
-  | actions.Delete
-  | actions.Delete2
-  | actions.Divide
-  | actions.EndDrag
-  | actions.Enumerate
-  | actions.Enumerate2
-  | actions.Equals
-  | actions.Equals2
-  | actions.Extends
-  | actions.FsCommand2
-  | actions.GetMember
-  | actions.GetProperty
-  | actions.GetTime
-  | actions.GetUrl
-  | actions.GetUrl2
-  | actions.GetVariable
-  | actions.GotoFrame
-  | actions.GotoFrame2
-  | actions.GotoLabel
-  | actions.Greater
-  | RawIf
-  | actions.ImplementsOp
-  | actions.Increment
-  | actions.InitArray
-  | actions.InitObject
-  | actions.InstanceOf
-  | RawJump
-  | actions.Less
-  | actions.Less2
-  | actions.MbAsciiToChar
-  | actions.MbCharToAscii
-  | actions.MbStringExtract
-  | actions.MbStringLength
-  | actions.Modulo
-  | actions.Multiply
-  | actions.NewMethod
-  | actions.NewObject
-  | actions.NextFrame
-  | actions.Not
-  | actions.Or
-  | actions.Play
-  | actions.Pop
-  | actions.PreviousFrame
-  | actions.Push
-  | actions.PushDuplicate
-  | actions.RandomNumber
-  | actions.RemoveSprite
-  | actions.Return
-  | actions.SetMember
-  | actions.SetProperty
-  | actions.SetTarget
-  | actions.SetTarget2
-  | actions.SetVariable
-  | actions.StackSwap
-  | actions.StartDrag
-  | actions.Stop
-  | actions.StopSounds
-  | actions.StoreRegister
-  | actions.StrictEquals
-  | actions.StrictMode
-  | actions.StringAdd
-  | actions.StringEquals
-  | actions.StringExtract
-  | actions.StringGreater
-  | actions.StringLength
-  | actions.StringLess
-  | actions.Subtract
-  | actions.TargetPath
-  | actions.Throw
-  | actions.ToggleQuality
-  | actions.ToInteger
-  | actions.ToNumber
-  | actions.ToString
-  | actions.Trace
-  | actions.Try
-  | actions.TypeOf
-  | actions.WaitForFrame
-  | actions.WaitForFrame2
-  | actions.With;
 
 export interface ActionHeader {
   actionCode: Uint8;
   length: Uint16;
 }
 
-export function parseActionHeader(byteStream: ByteStream): ActionHeader {
+export function parseActionHeader(byteStream: ReadableByteStream): ActionHeader {
   const actionCode: Uint8 = byteStream.readUint8();
   const length: Uint16 = actionCode < 0x80 ? 0 : byteStream.readUint16LE();
   return {actionCode, length};
 }
 
-export function parseActionString(byteStream: ByteStream): avm1.Action[] {
-  return parseActionStream(byteStream, streamParseActionString);
-}
-
-function* streamParseActionString(byteStream: ByteStream): Iterable<RawAction> {
-  while (true) {
-    if (byteStream.available() === 0) {
-      throw createIncompleteStreamError();
-    }
-    if (byteStream.peekUint8() === 0) {
-      byteStream.skip(1);
-      break;
-    }
-    yield parseAction(byteStream);
-  }
-}
-
-export function parseActionBlock(byteStream: ByteStream): avm1.Action[] {
-  return parseActionStream(byteStream, streamParseActionBlock);
-}
-
-function* streamParseActionBlock(byteStream: ByteStream): Iterable<RawAction> {
-  while (byteStream.available() > 0) {
-    yield parseAction(byteStream);
-  }
-}
-
-function parseActionStream(
-  byteStream: ByteStream,
-  rawActionStreamParser: (byteStream: ByteStream) => Iterable<RawAction>,
-): avm1.Action[] {
-  interface IndexedAction {
-    action: RawAction;
-    index: UintSize;
-    byteSize: UintSize;
-  }
-
-  const result: avm1.Action[] = [];
-  const bytesToIndexedAction: Map<UintSize, IndexedAction> = new Map();
-  let bytePos: UintSize = byteStream.bytePos;
-  let index: UintSize = 0;
-  for (const action of rawActionStreamParser(byteStream)) {
-    const byteSize: number = byteStream.bytePos - bytePos;
-    bytesToIndexedAction.set(bytePos, {byteSize, action, index});
-    // We are pushing raw actions and mutating them to add `offset`
-    // TODO: Cleaner approach avoiding this kind of mutation
-    result.push(action as any);
-    bytePos = byteStream.bytePos;
-    index++;
-  }
-  const endBytePos: UintSize = bytePos;
-  // tslint:disable:restrict-plus-operands
-  for (const [bytes, indexedAction] of bytesToIndexedAction) {
-    if (indexedAction.action.action === avm1.ActionType.If || indexedAction.action.action === avm1.ActionType.Jump) {
-      type BranchAction = avm1.actions.If | avm1.actions.Jump;
-      const targetBytes: number = bytes + indexedAction.byteSize + indexedAction.action.byteOffset;
-      if (targetBytes === endBytePos) {
-        (<any> indexedAction.action as BranchAction).offset = result.length - (indexedAction.index + 1);
-        continue;
-      }
-      const target: IndexedAction | undefined = bytesToIndexedAction.get(targetBytes);
-      if (target === undefined) {
-        throw new Error("Unable to map bytes offset to action offset");
-      }
-      (<any> indexedAction.action as BranchAction).offset = target.index - (indexedAction.index + 1);
-    }
-  }
-  // tslint:enable:restrict-plus-operands
-  return result;
-}
-
 // tslint:disable-next-line:cyclomatic-complexity
-export function parseAction(byteStream: ByteStream): RawAction {
+export function parseAction(byteStream: ReadableByteStream): Action {
   const startPos: number = byteStream.bytePos;
   const header: ActionHeader = parseActionHeader(byteStream);
   if (byteStream.available() < header.length) {
     const headerLength: number = byteStream.bytePos - startPos;
-    throw createIncompleteStreamError(headerLength + header.length);
+    throw new Error("IncompleteStream");
+    // throw createIncompleteStreamError(headerLength + header.length);
   }
   const actionDataStartPos: number = byteStream.bytePos;
-  let result: RawAction;
+  let result: Action;
   switch (header.actionCode) {
     case 0x04:
-      result = {action: avm1.ActionType.NextFrame};
+      result = {action: ActionType.NextFrame};
       break;
     case 0x05:
-      result = {action: avm1.ActionType.PreviousFrame};
+      result = {action: ActionType.PreviousFrame};
       break;
     case 0x06:
-      result = {action: avm1.ActionType.Play};
+      result = {action: ActionType.Play};
       break;
     case 0x07:
-      result = {action: avm1.ActionType.Stop};
+      result = {action: ActionType.Stop};
       break;
     case 0x08:
-      result = {action: avm1.ActionType.ToggleQuality};
+      result = {action: ActionType.ToggleQuality};
       break;
     case 0x09:
-      result = {action: avm1.ActionType.StopSounds};
+      result = {action: ActionType.StopSounds};
       break;
     case 0x0a:
-      result = {action: avm1.ActionType.Add};
+      result = {action: ActionType.Add};
       break;
     case 0x0b:
-      result = {action: avm1.ActionType.Subtract};
+      result = {action: ActionType.Subtract};
       break;
     case 0x0c:
-      result = {action: avm1.ActionType.Multiply};
+      result = {action: ActionType.Multiply};
       break;
     case 0x0d:
-      result = {action: avm1.ActionType.Divide};
+      result = {action: ActionType.Divide};
       break;
     case 0x0e:
-      result = {action: avm1.ActionType.Equals};
+      result = {action: ActionType.Equals};
       break;
     case 0x0f:
-      result = {action: avm1.ActionType.Less};
+      result = {action: ActionType.Less};
       break;
     case 0x10:
-      result = {action: avm1.ActionType.And};
+      result = {action: ActionType.And};
       break;
     case 0x11:
-      result = {action: avm1.ActionType.Or};
+      result = {action: ActionType.Or};
       break;
     case 0x12:
-      result = {action: avm1.ActionType.Not};
+      result = {action: ActionType.Not};
       break;
     case 0x13:
-      result = {action: avm1.ActionType.StringEquals};
+      result = {action: ActionType.StringEquals};
       break;
     case 0x14:
-      result = {action: avm1.ActionType.StringLength};
+      result = {action: ActionType.StringLength};
       break;
     case 0x15:
-      result = {action: avm1.ActionType.StringExtract};
+      result = {action: ActionType.StringExtract};
       break;
     case 0x17:
-      result = {action: avm1.ActionType.Pop};
+      result = {action: ActionType.Pop};
       break;
     case 0x18:
-      result = {action: avm1.ActionType.ToInteger};
+      result = {action: ActionType.ToInteger};
       break;
     case 0x1c:
-      result = {action: avm1.ActionType.GetVariable};
+      result = {action: ActionType.GetVariable};
       break;
     case 0x1d:
-      result = {action: avm1.ActionType.SetVariable};
+      result = {action: ActionType.SetVariable};
       break;
     case 0x20:
-      result = {action: avm1.ActionType.SetTarget2};
+      result = {action: ActionType.SetTarget2};
       break;
     case 0x21:
-      result = {action: avm1.ActionType.StringAdd};
+      result = {action: ActionType.StringAdd};
       break;
     case 0x22:
-      result = {action: avm1.ActionType.GetProperty};
+      result = {action: ActionType.GetProperty};
       break;
     case 0x23:
-      result = {action: avm1.ActionType.SetProperty};
+      result = {action: ActionType.SetProperty};
       break;
     case 0x24:
-      result = {action: avm1.ActionType.CloneSprite};
+      result = {action: ActionType.CloneSprite};
       break;
     case 0x25:
-      result = {action: avm1.ActionType.RemoveSprite};
+      result = {action: ActionType.RemoveSprite};
       break;
     case 0x26:
-      result = {action: avm1.ActionType.Trace};
+      result = {action: ActionType.Trace};
       break;
     case 0x27:
-      result = {action: avm1.ActionType.StartDrag};
+      result = {action: ActionType.StartDrag};
       break;
     case 0x28:
-      result = {action: avm1.ActionType.EndDrag};
+      result = {action: ActionType.EndDrag};
       break;
     case 0x29:
-      result = {action: avm1.ActionType.StringLess};
+      result = {action: ActionType.StringLess};
       break;
     case 0x2a:
-      result = {action: avm1.ActionType.Throw};
+      result = {action: ActionType.Throw};
       break;
     case 0x2b:
-      result = {action: avm1.ActionType.CastOp};
+      result = {action: ActionType.CastOp};
       break;
     case 0x2c:
-      result = {action: avm1.ActionType.ImplementsOp};
+      result = {action: ActionType.ImplementsOp};
       break;
     case 0x2d:
-      result = {action: avm1.ActionType.FsCommand2};
+      result = {action: ActionType.FsCommand2};
       break;
     case 0x30:
-      result = {action: avm1.ActionType.RandomNumber};
+      result = {action: ActionType.RandomNumber};
       break;
     case 0x31:
-      result = {action: avm1.ActionType.MbStringLength};
+      result = {action: ActionType.MbStringLength};
       break;
     case 0x32:
-      result = {action: avm1.ActionType.CharToAscii};
+      result = {action: ActionType.CharToAscii};
       break;
     case 0x33:
-      result = {action: avm1.ActionType.AsciiToChar};
+      result = {action: ActionType.AsciiToChar};
       break;
     case 0x34:
-      result = {action: avm1.ActionType.GetTime};
+      result = {action: ActionType.GetTime};
       break;
     case 0x35:
-      result = {action: avm1.ActionType.MbStringExtract};
+      result = {action: ActionType.MbStringExtract};
       break;
     case 0x36:
-      result = {action: avm1.ActionType.MbCharToAscii};
+      result = {action: ActionType.MbCharToAscii};
       break;
     case 0x37:
-      result = {action: avm1.ActionType.MbAsciiToChar};
+      result = {action: ActionType.MbAsciiToChar};
       break;
     case 0x3a:
-      result = {action: avm1.ActionType.Delete};
+      result = {action: ActionType.Delete};
       break;
     case 0x3b:
-      result = {action: avm1.ActionType.Delete2};
+      result = {action: ActionType.Delete2};
       break;
     case 0x3c:
-      result = {action: avm1.ActionType.DefineLocal};
+      result = {action: ActionType.DefineLocal};
       break;
     case 0x3d:
-      result = {action: avm1.ActionType.CallFunction};
+      result = {action: ActionType.CallFunction};
       break;
     case 0x3e:
-      result = {action: avm1.ActionType.Return};
+      result = {action: ActionType.Return};
       break;
     case 0x3f:
-      result = {action: avm1.ActionType.Modulo};
+      result = {action: ActionType.Modulo};
       break;
     case 0x40:
-      result = {action: avm1.ActionType.NewObject};
+      result = {action: ActionType.NewObject};
       break;
     case 0x41:
-      result = {action: avm1.ActionType.DefineLocal2};
+      result = {action: ActionType.DefineLocal2};
       break;
     case 0x42:
-      result = {action: avm1.ActionType.InitArray};
+      result = {action: ActionType.InitArray};
       break;
     case 0x43:
-      result = {action: avm1.ActionType.InitObject};
+      result = {action: ActionType.InitObject};
       break;
     case 0x44:
-      result = {action: avm1.ActionType.TypeOf};
+      result = {action: ActionType.TypeOf};
       break;
     case 0x45:
-      result = {action: avm1.ActionType.TargetPath};
+      result = {action: ActionType.TargetPath};
       break;
     case 0x46:
-      result = {action: avm1.ActionType.Enumerate};
+      result = {action: ActionType.Enumerate};
       break;
     case 0x47:
-      result = {action: avm1.ActionType.Add2};
+      result = {action: ActionType.Add2};
       break;
     case 0x48:
-      result = {action: avm1.ActionType.Less2};
+      result = {action: ActionType.Less2};
       break;
     case 0x49:
-      result = {action: avm1.ActionType.Equals2};
+      result = {action: ActionType.Equals2};
       break;
     case 0x4a:
-      result = {action: avm1.ActionType.ToNumber};
+      result = {action: ActionType.ToNumber};
       break;
     case 0x4b:
-      result = {action: avm1.ActionType.ToString};
+      result = {action: ActionType.ToString};
       break;
     case 0x4c:
-      result = {action: avm1.ActionType.PushDuplicate};
+      result = {action: ActionType.PushDuplicate};
       break;
     case 0x4d:
-      result = {action: avm1.ActionType.StackSwap};
+      result = {action: ActionType.StackSwap};
       break;
     case 0x4e:
-      result = {action: avm1.ActionType.GetMember};
+      result = {action: ActionType.GetMember};
       break;
     case 0x4f:
-      result = {action: avm1.ActionType.SetMember};
+      result = {action: ActionType.SetMember};
       break;
     case 0x50:
-      result = {action: avm1.ActionType.Increment};
+      result = {action: ActionType.Increment};
       break;
     case 0x51:
-      result = {action: avm1.ActionType.Decrement};
+      result = {action: ActionType.Decrement};
       break;
     case 0x52:
-      result = {action: avm1.ActionType.CallMethod};
+      result = {action: ActionType.CallMethod};
       break;
     case 0x53:
-      result = {action: avm1.ActionType.NewMethod};
+      result = {action: ActionType.NewMethod};
       break;
     case 0x54:
-      result = {action: avm1.ActionType.InstanceOf};
+      result = {action: ActionType.InstanceOf};
       break;
     case 0x55:
-      result = {action: avm1.ActionType.Enumerate2};
+      result = {action: ActionType.Enumerate2};
       break;
     case 0x60:
-      result = {action: avm1.ActionType.BitAnd};
+      result = {action: ActionType.BitAnd};
       break;
     case 0x61:
-      result = {action: avm1.ActionType.BitOr};
+      result = {action: ActionType.BitOr};
       break;
     case 0x62:
-      result = {action: avm1.ActionType.BitXor};
+      result = {action: ActionType.BitXor};
       break;
     case 0x63:
-      result = {action: avm1.ActionType.BitLShift};
+      result = {action: ActionType.BitLShift};
       break;
     case 0x64:
-      result = {action: avm1.ActionType.BitRShift};
+      result = {action: ActionType.BitRShift};
       break;
     case 0x65:
-      result = {action: avm1.ActionType.BitURShift};
+      result = {action: ActionType.BitURShift};
       break;
     case 0x66:
-      result = {action: avm1.ActionType.StrictEquals};
+      result = {action: ActionType.StrictEquals};
       break;
     case 0x67:
-      result = {action: avm1.ActionType.Greater};
+      result = {action: ActionType.Greater};
       break;
     case 0x68:
-      result = {action: avm1.ActionType.StringGreater};
+      result = {action: ActionType.StringGreater};
       break;
     case 0x69:
-      result = {action: avm1.ActionType.Extends};
+      result = {action: ActionType.Extends};
       break;
     case 0x81:
       result = parseGotoFrameAction(byteStream);
@@ -508,13 +323,13 @@ export function parseAction(byteStream: ByteStream): RawAction {
       result = parseIfAction(byteStream);
       break;
     case 0x9e:
-      result = {action: avm1.ActionType.Call};
+      result = {action: ActionType.Call};
       break;
     case 0x9f:
       result = parseGotoFrame2Action(byteStream);
       break;
     default:
-      result = {action: avm1.ActionType.Unknown, actionCode: header.actionCode};
+      result = {action: ActionType.Unknown, actionCode: header.actionCode};
       byteStream.skip(header.length);
       break;
   }
@@ -526,79 +341,79 @@ export function parseAction(byteStream: ByteStream): RawAction {
   return result;
 }
 
-export function parseGotoFrameAction(byteStream: ByteStream): avm1.actions.GotoFrame {
+export function parseGotoFrameAction(byteStream: ReadableByteStream): actions.GotoFrame {
   const frame: Uint16 = byteStream.readUint16LE();
   return {
-    action: avm1.ActionType.GotoFrame,
+    action: ActionType.GotoFrame,
     frame,
   };
 }
 
-export function parseGetUrlAction(byteStream: ByteStream): avm1.actions.GetUrl {
+export function parseGetUrlAction(byteStream: ReadableByteStream): actions.GetUrl {
   const url: string = byteStream.readCString();
   const target: string = byteStream.readCString();
   return {
-    action: avm1.ActionType.GetUrl,
+    action: ActionType.GetUrl,
     url,
     target,
   };
 }
 
-export function parseStoreRegisterAction(byteStream: ByteStream): avm1.actions.StoreRegister {
-  const registerNumber: Uint8 = byteStream.readUint8();
+export function parseStoreRegisterAction(byteStream: ReadableByteStream): actions.StoreRegister {
+  const register: Uint8 = byteStream.readUint8();
   return {
-    action: avm1.ActionType.StoreRegister,
-    registerNumber,
+    action: ActionType.StoreRegister,
+    register,
   };
 }
 
-export function parseConstantPoolAction(byteStream: ByteStream): avm1.actions.ConstantPool {
+export function parseConstantPoolAction(byteStream: ReadableByteStream): actions.ConstantPool {
   const constantCount: UintSize = byteStream.readUint16LE();
   const constantPool: string[] = [];
   for (let i: number = 0; i < constantCount; i++) {
     constantPool.push(byteStream.readCString());
   }
   return {
-    action: avm1.ActionType.ConstantPool,
+    action: ActionType.ConstantPool,
     constantPool,
   };
 }
 
-export function parseWaitForFrameAction(byteStream: ByteStream): avm1.actions.WaitForFrame {
+export function parseWaitForFrameAction(byteStream: ReadableByteStream): actions.WaitForFrame {
   const frame: UintSize = byteStream.readUint16LE();
   const skipCount: UintSize = byteStream.readUint8();
   return {
-    action: avm1.ActionType.WaitForFrame,
+    action: ActionType.WaitForFrame,
     frame,
     skipCount,
   };
 }
 
-export function parseSetTargetAction(byteStream: ByteStream): avm1.actions.SetTarget {
+export function parseSetTargetAction(byteStream: ReadableByteStream): actions.SetTarget {
   const targetName: string = byteStream.readCString();
   return {
-    action: avm1.ActionType.SetTarget,
+    action: ActionType.SetTarget,
     targetName,
   };
 }
 
-export function parseGotoLabelAction(byteStream: ByteStream): avm1.actions.GotoLabel {
+export function parseGotoLabelAction(byteStream: ReadableByteStream): actions.GotoLabel {
   const label: string = byteStream.readCString();
   return {
-    action: avm1.ActionType.GotoLabel,
+    action: ActionType.GotoLabel,
     label,
   };
 }
 
-export function parseWaitForFrame2Action(byteStream: ByteStream): avm1.actions.WaitForFrame2 {
+export function parseWaitForFrame2Action(byteStream: ReadableByteStream): actions.WaitForFrame2 {
   const skipCount: UintSize = byteStream.readUint8();
   return {
-    action: avm1.ActionType.WaitForFrame2,
+    action: ActionType.WaitForFrame2,
     skipCount,
   };
 }
 
-export function parseDefineFunction2Action(byteStream: ByteStream): avm1.actions.DefineFunction2 {
+export function parseDefineFunction2Action(byteStream: ReadableByteStream): actions.DefineFunction2 {
   const name: string = byteStream.readCString();
   const parameterCount: UintSize = byteStream.readUint16LE();
   const registerCount: UintSize = byteStream.readUint8();
@@ -623,10 +438,10 @@ export function parseDefineFunction2Action(byteStream: ByteStream): avm1.actions
   }
   const codeSize: UintSize = byteStream.readUint16LE();
   // The action length stops here for parseDefineFunction2Action
-  const body: avm1.Action[] = parseActionBlock(byteStream.take(codeSize));
+  const body: Uint8Array = byteStream.takeBytes(codeSize);
 
   return {
-    action: avm1.ActionType.DefineFunction2,
+    action: ActionType.DefineFunction2,
     name,
     preloadParent,
     preloadRoot,
@@ -643,7 +458,7 @@ export function parseDefineFunction2Action(byteStream: ByteStream): avm1.actions
   };
 }
 
-function parseCatchTarget(byteStream: ByteStream, catchInRegister: boolean): avm1.CatchTarget {
+function parseCatchTarget(byteStream: ReadableByteStream, catchInRegister: boolean): avm1.CatchTarget {
   if (catchInRegister) {
     return {type: avm1.CatchTargetType.Register, register: byteStream.readUint8()};
   } else {
@@ -651,28 +466,28 @@ function parseCatchTarget(byteStream: ByteStream, catchInRegister: boolean): avm
   }
 }
 
-export function parseTryAction(byteStream: ByteStream): avm1.actions.Try {
+export function parseTryAction(byteStream: ReadableByteStream): actions.Try {
   const flags: Uint8 = byteStream.readUint8();
-  // (Skip first 5 bits)
-  const catchInRegister: boolean = (flags & (1 << 2)) !== 0;
-  const hasFinallyBlock: boolean = (flags & (1 << 1)) !== 0;
   const hasCatchBlock: boolean = (flags & (1 << 0)) !== 0;
+  const hasFinallyBlock: boolean = (flags & (1 << 1)) !== 0;
+  const catchInRegister: boolean = (flags & (1 << 2)) !== 0;
+  // (Skip bits [3,7])
 
   const trySize: Uint16 = byteStream.readUint16LE();
   const finallySize: Uint16 = byteStream.readUint16LE();
   const catchSize: Uint16 = byteStream.readUint16LE();
   const catchTarget: avm1.CatchTarget = parseCatchTarget(byteStream, catchInRegister);
-  const tryBody: avm1.Action[] = parseActionBlock(byteStream.take(trySize));
-  let catchBody: avm1.Action[] | undefined = undefined;
+  const tryBody: Uint8Array = byteStream.takeBytes(trySize);
+  let catchBody: Uint8Array | undefined = undefined;
   if (hasCatchBlock) {
-    catchBody = parseActionBlock(byteStream.take(catchSize));
+    catchBody = byteStream.takeBytes(catchSize);
   }
-  let finallyBody: avm1.Action[] | undefined = undefined;
+  let finallyBody: Uint8Array | undefined = undefined;
   if (hasFinallyBlock) {
-    finallyBody = parseActionBlock(byteStream.take(finallySize));
+    finallyBody = byteStream.takeBytes(finallySize);
   }
   return {
-    action: avm1.ActionType.Try,
+    action: ActionType.Try,
     try: tryBody,
     catch: catchBody,
     catchTarget,
@@ -680,28 +495,28 @@ export function parseTryAction(byteStream: ByteStream): avm1.actions.Try {
   };
 }
 
-export function parseWithAction(byteStream: ByteStream): avm1.actions.With {
+export function parseWithAction(byteStream: ReadableByteStream): actions.With {
   const withSize: Uint16 = byteStream.readUint16LE();
   // The action length stops here for parseWithAction
-  const withBody: avm1.Action[] = parseActionBlock(byteStream.take(withSize));
+  const withBody: Uint8Array = byteStream.takeBytes(withSize);
   return {
-    action: avm1.ActionType.With,
+    action: ActionType.With,
     with: withBody,
   };
 }
 
-export function parsePushAction(byteStream: ByteStream): avm1.actions.Push {
+export function parsePushAction(byteStream: ReadableByteStream): actions.Push {
   const values: avm1.Value[] = [];
   while (byteStream.available() > 0) {
     values.push(parseActionValue(byteStream));
   }
   return {
-    action: avm1.ActionType.Push,
+    action: ActionType.Push,
     values,
   };
 }
 
-export function parseActionValue(byteStream: ByteStream): avm1.Value {
+export function parseActionValue(byteStream: ReadableByteStream): avm1.Value {
   const typeCode: Uint8 = byteStream.readUint8();
   switch (typeCode) {
     case 0:
@@ -729,16 +544,16 @@ export function parseActionValue(byteStream: ByteStream): avm1.Value {
   }
 }
 
-export function parseJumpAction(byteStream: ByteStream): RawJump {
-  const byteOffset: Uint16 = byteStream.readSint16LE();
+export function parseJumpAction(byteStream: ReadableByteStream): actions.Jump {
+  const offset: Uint16 = byteStream.readSint16LE();
   return {
-    action: avm1.ActionType.Jump,
-    byteOffset,
+    action: ActionType.Jump,
+    offset,
   };
 }
 
-export function parseGetUrl2Action(byteStream: ByteStream): avm1.actions.GetUrl2 {
-  const bitStream: BitStream = byteStream.asBitStream();
+export function parseGetUrl2Action(byteStream: ReadableByteStream): actions.GetUrl2 {
+  const bitStream: ReadableBitStream = byteStream.asBitStream();
 
   let method: avm1.GetUrl2Method;
   switch (bitStream.readUint16Bits(2)) {
@@ -761,14 +576,14 @@ export function parseGetUrl2Action(byteStream: ByteStream): avm1.actions.GetUrl2
   bitStream.align();
 
   return {
-    action: avm1.ActionType.GetUrl2,
+    action: ActionType.GetUrl2,
     method,
     loadTarget,
     loadVariables,
   };
 }
 
-export function parseDefineFunctionAction(byteStream: ByteStream): avm1.actions.DefineFunction {
+export function parseDefineFunctionAction(byteStream: ReadableByteStream): actions.DefineFunction {
   const name: string = byteStream.readCString();
   const parameterCount: UintSize = byteStream.readUint16LE();
   const parameters: string[] = [];
@@ -777,32 +592,32 @@ export function parseDefineFunctionAction(byteStream: ByteStream): avm1.actions.
   }
   const bodySize: UintSize = byteStream.readUint16LE();
   // The action length stops here for parseDefineFunctionAction
-  const body: avm1.Action[] = parseActionBlock(byteStream.take(bodySize));
+  const body: Uint8Array = byteStream.takeBytes(bodySize);
 
   return {
-    action: avm1.ActionType.DefineFunction,
+    action: ActionType.DefineFunction,
     name,
     parameters,
     body,
   };
 }
 
-export function parseIfAction(byteStream: ByteStream): RawIf {
-  const byteOffset: Uint16 = byteStream.readSint16LE();
+export function parseIfAction(byteStream: ReadableByteStream): actions.If {
+  const offset: Uint16 = byteStream.readSint16LE();
   return {
-    action: avm1.ActionType.If,
-    byteOffset,
+    action: ActionType.If,
+    offset,
   };
 }
 
-export function parseGotoFrame2Action(byteStream: ByteStream): avm1.actions.GotoFrame2 {
+export function parseGotoFrame2Action(byteStream: ReadableByteStream): actions.GotoFrame2 {
   const flags: Uint8 = byteStream.readUint8();
   // (Skip first 6 bits)
   const play: boolean = (flags & (1 << 0)) !== 0;
   const hasSceneBias: boolean = (flags & (1 << 1)) !== 0;
   const sceneBias: Uint16 = hasSceneBias ? byteStream.readUint16LE() : 0;
   return {
-    action: avm1.ActionType.GotoFrame2,
+    action: ActionType.GotoFrame2,
     play,
     sceneBias,
   };
