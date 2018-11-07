@@ -15,11 +15,17 @@ export class Avm1Parser {
   }
 
   readNext(): Action | undefined {
+    if (this.stream.bytePos === this.stream.byteEnd) {
+      return undefined;
+    } else if (this.stream.peekUint8() === 0) {
+      this.stream.bytePos += 1;
+      return undefined;
+    }
     return parseAction(this.stream);
   }
 
   readAt(offset: UintSize): Action | undefined {
     this.stream.bytePos = offset;
-    return parseAction(this.stream);
+    return this.readNext();
   }
 }
