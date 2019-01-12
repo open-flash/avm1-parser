@@ -1,7 +1,7 @@
-import { assert } from "chai";
+import chai from "chai";
 
 describe("parseHeader", function () {
   it("compiles", function () {
-    assert.isTrue(true);
+    chai.assert.isTrue(true);
   });
 });

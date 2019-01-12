@@ -18,10 +18,10 @@ export function parseActionHeader(byteStream: ReadableByteStream): ActionHeader 
 
 // tslint:disable-next-line:cyclomatic-complexity
 export function parseAction(byteStream: ReadableByteStream): Action {
-  const startPos: number = byteStream.bytePos;
+  // const startPos: number = byteStream.bytePos;
   const header: ActionHeader = parseActionHeader(byteStream);
   if (byteStream.available() < header.length) {
-    const headerLength: number = byteStream.bytePos - startPos;
+    // const headerLength: number = byteStream.bytePos - startPos;
     throw new Error("IncompleteStream");
     // throw createIncompleteStreamError(headerLength + header.length);
   }
