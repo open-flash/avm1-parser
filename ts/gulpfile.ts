@@ -1,10 +1,9 @@
+import gulp from "gulp";
+import minimist from "minimist";
 import * as buildTools from "turbo-gulp";
 import { LibTarget, registerLibTasks } from "turbo-gulp/targets/lib";
 import { MochaTarget, registerMochaTasks } from "turbo-gulp/targets/mocha";
 import { NodeTarget, registerNodeTasks } from "turbo-gulp/targets/node";
-
-import gulp from "gulp";
-import minimist from "minimist";
 
 interface Options {
   devDist?: string;
@@ -56,7 +55,7 @@ const lib: LibTarget = {
     dir: "typedoc",
     name: "SWF Parser",
     deploy: {
-      repository: "git@github.com:open-flash/swf-tree.git",
+      repository: "git@github.com:open-flash/swf-parser.git",
       branch: "gh-pages",
     },
   },

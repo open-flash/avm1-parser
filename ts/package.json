@@ -18,8 +18,8 @@
     "lint": "gulp :lint:fix"
   },
   "dependencies": {
-    "@open-flash/stream": "^0.0.2",
-    "avm1-tree": "^0.0.16",
+    "@open-flash/stream": "^0.1.0",
+    "avm1-tree": "^0.1.0",
     "incident": "^3.2.0",
     "semantic-types": "^0.1.1"
   },
@@ -29,16 +29,20 @@
     "@types/minimist": "^1.2.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.12.18",
-    "bson": "^4.0.1",
     "chai": "^4.2.0",
-    "esm": "^3.0.84",
     "gulp": "^4.0.0",
     "gulp-cli": "^2.0.1",
     "kryo": "^0.8.1",
     "minimist": "^1.2.0",
-    "ts-node": "^7.0.1",
+    "ts-node": "^8.0.2",
     "tslint": "^5.12.1",
     "turbo-gulp": "^0.18.0",
-    "typescript": "^3.2.2"
+    "typescript": "^3.2.4"
+  },
+  "c88": {
+    "match": [
+      "build/test/lib/*.{js,mjs}",
+      "build/test/lib/**/*.{js,mjs}"
+    ]
   }
 }
