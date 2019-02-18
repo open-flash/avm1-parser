@@ -474,8 +474,8 @@ export function parseTryAction(byteStream: ReadableByteStream): actions.Try {
   // (Skip bits [3,7])
 
   const trySize: Uint16 = byteStream.readUint16LE();
-  const finallySize: Uint16 = byteStream.readUint16LE();
   const catchSize: Uint16 = byteStream.readUint16LE();
+  const finallySize: Uint16 = byteStream.readUint16LE();
   const catchTarget: avm1.CatchTarget = parseCatchTarget(byteStream, catchInRegister);
   const tryBody: Uint8Array = byteStream.takeBytes(trySize);
   let catchBody: Uint8Array | undefined = undefined;

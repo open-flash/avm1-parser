@@ -194,8 +194,8 @@ pub fn parse_try_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Try> {
       ((catch_in_register, catch_block, finally_block))
     )) >>
     try_size: parse_le_u16 >>
-    finally_size: parse_le_u16 >>
     catch_size: parse_le_u16 >>
+    finally_size: parse_le_u16 >>
     catch_target: call!(parse_catch_target, flags.0) >>
     try_body: call!(parse_actions_block, try_size as usize) >>
     catch_body: cond!(flags.1, call!(parse_actions_block, catch_size as usize)) >>
