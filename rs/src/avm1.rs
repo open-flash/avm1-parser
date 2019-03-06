@@ -155,7 +155,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
     )) >>
     parameters: count!(map!(pair!(parse_u8, parse_c_string), |p: (u8, String)| ast::actions::define_function2::Parameter {register: p.0, name: p.1}), parameter_count as usize) >>
     code_size: parse_le_u16 >>
-    body: call!(parse_actions_block, code_size as usize) >>
+    body: take!(code_size as usize) >>
     (ast::actions::DefineFunction2 {
       name: name,
       preload_parent: flags.preload_parent,
@@ -169,7 +169,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
       preload_global: flags.preload_global,
       register_count: register_count as usize,
       parameters: parameters,
-      body: body,
+      body: body.to_vec(),
     })
   )
 }
@@ -196,11 +196,11 @@ pub fn parse_try_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Try> {
     catch_size: parse_le_u16 >>
     finally_size: parse_le_u16 >>
     catch_target: call!(parse_catch_target, flags.0) >>
-    try_body: call!(parse_actions_block, try_size as usize) >>
-    catch_body: cond!(flags.1, call!(parse_actions_block, catch_size as usize)) >>
-    finally_body: cond!(flags.2, call!(parse_actions_block, finally_size as usize)) >>
+    try_body: take!(try_size as usize) >>
+    catch_body: cond!(flags.1, map!(take!(catch_size as usize), |slice| slice.to_vec())) >>
+    finally_body: cond!(flags.2, map!(take!(finally_size as usize), |slice| slice.to_vec())) >>
     (ast::actions::Try {
-      r#try: try_body,
+      r#try: try_body.to_vec(),
       catch_target: catch_target,
       catch: catch_body,
       finally: finally_body,
@@ -211,10 +211,10 @@ pub fn parse_try_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Try> {
 pub fn parse_with_action(input: &[u8]) -> NomResult<&[u8], ast::actions::With> {
   do_parse!(
     input,
-    with_size: parse_le_i16 >>
-    with_body: call!(parse_actions_block, with_size as usize) >>
+    body_size: parse_le_i16 >>
+    body: take!(body_size as usize) >>
     (ast::actions::With {
-      with: with_body,
+      with: body.to_vec(),
     })
   )
 }
@@ -285,11 +285,11 @@ pub fn parse_define_function_action(input: &[u8]) -> NomResult<&[u8], ast::actio
     parameter_count: parse_le_u16 >>
     parameters: count!(parse_c_string, parameter_count as usize) >>
     code_size: parse_le_u16 >>
-    body: call!(parse_actions_block, code_size as usize) >>
+    body: take!(code_size as usize) >>
     (ast::actions::DefineFunction {
       name: name,
       parameters: parameters,
-      body: body,
+      body: body.to_vec(),
     })
   )
 }
@@ -450,52 +450,6 @@ pub fn parse_action(input: &[u8]) -> NomResult<&[u8], ast::Action> {
     }
     Err(e) => Err(e),
   }
-}
-
-pub fn parse_actions_block(input: &[u8], code_size: usize) -> NomResult<&[u8], Vec<ast::Action>> {
-  let mut block: Vec<ast::Action> = Vec::new();
-  let mut current_input = &input[..code_size];
-
-  while current_input.len() > 0 {
-    match parse_action(current_input) {
-      Err(e) => return Err(e),
-//      Err(::nom::Err::Incomplete(Needed::Unknown)) => return Err(::nom::Err::Incomplete(Needed::Unknown)),
-//      Err(::nom::Err::Incomplete(Needed::Size(i))) => return Err(::nom::Err::Incomplete(Needed::Size(i))),
-      Ok((remaining_input, action)) => {
-        block.push(action);
-        current_input = remaining_input;
-      }
-    }
-  }
-
-  Ok((&input[code_size..], block))
-}
-
-pub fn parse_actions_string(input: &[u8]) -> NomResult<&[u8], Vec<ast::Action>> {
-  let mut block: Vec<ast::Action> = Vec::new();
-  let mut current_input = input;
-
-  if current_input.len() == 0 {
-    return Err(::nom::Err::Incomplete(Needed::Size(1)));
-  }
-
-  while current_input[0] != 0 {
-    match parse_action(current_input) {
-      Err(e) => return Err(e),
-//      Err(::nom::Err::Failure(e)) => return Err(::nom::Err::Failure(e)),
-//      Err(::nom::Err::Incomplete(Needed::Unknown)) => return Err(::nom::Err::Incomplete(Needed::Unknown)),
-//      Err(::nom::Err::Incomplete(Needed::Size(i))) => return Err(::nom::Err::Incomplete(Needed::Size(i))),
-      Ok((remaining_input, action)) => {
-        block.push(action);
-        current_input = remaining_input;
-      }
-    }
-    if current_input.len() == 0 {
-      return Err(::nom::Err::Incomplete(Needed::Unknown));
-    }
-  }
-
-  Ok((current_input, block))
 }
 
 #[cfg(test)]
