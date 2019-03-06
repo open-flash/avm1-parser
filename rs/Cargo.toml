@@ -23,5 +23,9 @@ path = "src/main.rs"
 avm1-tree = "^0.2.0"
 nom = "^4.2.2"
 
+[dev-dependencies]
+serde_json = "^1.0.39"
+test-generator = "^0.2.2"
+
 #[replace]
 #"avm1-tree:0.0.14" = { path = '../../avm1-tree/rs' }

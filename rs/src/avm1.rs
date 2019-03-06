@@ -324,7 +324,7 @@ pub fn parse_goto_frame2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::
   )
 }
 
-fn parse_action(input: &[u8]) -> NomResult<&[u8], ast::Action> {
+pub fn parse_action(input: &[u8]) -> NomResult<&[u8], ast::Action> {
   match parse_action_header(input) {
     Ok((remaining_input, ah)) => {
       if remaining_input.len() < ah.length {
