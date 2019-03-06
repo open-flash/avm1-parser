@@ -1,11 +1,10 @@
 use avm1_tree as ast;
 use nom::{IResult as NomResult, Needed};
 use nom::{le_f32 as parse_le_f32, le_f64 as parse_le_f64, le_i16 as parse_le_i16, le_i32 as parse_le_i32, le_u16 as parse_le_u16, le_u8 as parse_u8};
+
 use super::basic_data_types::{parse_bool_bits, parse_c_string, skip_bits};
 
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ActionHeader {
   pub action_code: u8,
   pub length: usize,
@@ -110,7 +109,7 @@ pub fn parse_wait_for_frame2_action(input: &[u8]) -> NomResult<&[u8], ast::actio
   )
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct DefineFunction2Flags {
   pub preload_parent: bool,
   pub preload_root: bool,
@@ -154,7 +153,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
         preload_global: preload_global,
       })
     )) >>
-    parameters: count!(map!(pair!(parse_u8, parse_c_string), |p: (u8, String)| ast::actions::Parameter {register: p.0, name: p.1}), parameter_count as usize) >>
+    parameters: count!(map!(pair!(parse_u8, parse_c_string), |p: (u8, String)| ast::actions::define_function2::Parameter {register: p.0, name: p.1}), parameter_count as usize) >>
     code_size: parse_le_u16 >>
     body: call!(parse_actions_block, code_size as usize) >>
     (ast::actions::DefineFunction2 {
@@ -175,11 +174,11 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
   )
 }
 
-fn parse_catch_target(input: &[u8], catch_in_register: bool) -> NomResult<&[u8], ast::actions::CatchTarget> {
+fn parse_catch_target(input: &[u8], catch_in_register: bool) -> NomResult<&[u8], ast::actions::r#try::CatchTarget> {
   if catch_in_register {
-    parse_u8(input).map(|(i, v)| (i, ast::actions::CatchTarget::Register(v)))
+    parse_u8(input).map(|(i, v)| (i, ast::actions::r#try::CatchTarget::Register(v)))
   } else {
-    parse_c_string(input).map(|(i, v): (_, String)| (i, ast::actions::CatchTarget::Variable(v)))
+    parse_c_string(input).map(|(i, v): (_, String)| (i, ast::actions::r#try::CatchTarget::Variable(v)))
   }
 }
 
@@ -251,7 +250,7 @@ pub fn parse_jump_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Jump> {
     input,
     branch_offset: parse_le_i16 >>
     (ast::actions::Jump {
-      offset: branch_offset as isize,
+      offset: branch_offset,
     })
   )
 }
@@ -262,9 +261,9 @@ pub fn parse_get_url2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Get
     send_vars_method: map!(
       take_bits!(u8, 2),
       |v| match v {
-        0 => ast::actions::SendVarsMethod::None,
-        1 => ast::actions::SendVarsMethod::Get,
-        2 => ast::actions::SendVarsMethod::Post,
+        0 => ast::actions::get_url2::SendVarsMethod::None,
+        1 => ast::actions::get_url2::SendVarsMethod::Get,
+        2 => ast::actions::get_url2::SendVarsMethod::Post,
         _ => panic!("Unexpected value for `send_vars_method`."),
       }
     ) >>
@@ -300,7 +299,7 @@ pub fn parse_if_action(input: &[u8]) -> NomResult<&[u8], ast::actions::If> {
     input,
     branch_offset: parse_le_i16 >>
     (ast::actions::If {
-      branch_offset: branch_offset,
+      offset: branch_offset,
     })
   )
 }
@@ -502,6 +501,7 @@ pub fn parse_actions_string(input: &[u8]) -> NomResult<&[u8], Vec<ast::Action>> 
 #[cfg(test)]
 mod tests {
   use nom;
+
   use super::*;
 
   #[test]
