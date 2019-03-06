@@ -1,0 +1,9 @@
+{
+  "action": "push",
+  "values": [
+    {
+      "type": "string",
+      "value": "Hello, World!"
+    }
+  ]
+}
