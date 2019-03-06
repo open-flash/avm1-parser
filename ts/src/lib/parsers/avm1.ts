@@ -1,7 +1,13 @@
 import { ReadableBitStream, ReadableByteStream } from "@open-flash/stream";
-import * as avm1 from "avm1-tree";
-import { Action, ActionType } from "avm1-tree";
+import { Action } from "avm1-tree/action";
+import { ActionType } from "avm1-tree/action-type";
 import * as actions from "avm1-tree/actions";
+import { CatchTarget } from "avm1-tree/catch-target";
+import { CatchTargetType } from "avm1-tree/catch-targets/_type";
+import { GetUrl2Method } from "avm1-tree/get-url2-method";
+import { Parameter as DefineFunction2Parameter } from "avm1-tree/parameter";
+import { Value } from "avm1-tree/value";
+import { ValueType } from "avm1-tree/value-type";
 import { Incident } from "incident";
 import { Uint16, Uint8, UintSize } from "semantic-types";
 
@@ -430,7 +436,7 @@ export function parseDefineFunction2Action(byteStream: ReadableByteStream): acti
   const preloadGlobal: boolean = (flags & (1 << 8)) !== 0;
   // Skip 7 bits
 
-  const parameters: avm1.Parameter[] = [];
+  const parameters: DefineFunction2Parameter[] = [];
   for (let i: number = 0; i < parameterCount; i++) {
     const register: Uint8 = byteStream.readUint8();
     const name: string = byteStream.readCString();
@@ -458,11 +464,11 @@ export function parseDefineFunction2Action(byteStream: ReadableByteStream): acti
   };
 }
 
-function parseCatchTarget(byteStream: ReadableByteStream, catchInRegister: boolean): avm1.CatchTarget {
+function parseCatchTarget(byteStream: ReadableByteStream, catchInRegister: boolean): CatchTarget {
   if (catchInRegister) {
-    return {type: avm1.CatchTargetType.Register, register: byteStream.readUint8()};
+    return {type: CatchTargetType.Register, target: byteStream.readUint8()};
   } else {
-    return {type: avm1.CatchTargetType.Variable, variable: byteStream.readCString()};
+    return {type: CatchTargetType.Variable, target: byteStream.readCString()};
   }
 }
 
@@ -476,7 +482,7 @@ export function parseTryAction(byteStream: ReadableByteStream): actions.Try {
   const trySize: Uint16 = byteStream.readUint16LE();
   const catchSize: Uint16 = byteStream.readUint16LE();
   const finallySize: Uint16 = byteStream.readUint16LE();
-  const catchTarget: avm1.CatchTarget = parseCatchTarget(byteStream, catchInRegister);
+  const catchTarget: CatchTarget = parseCatchTarget(byteStream, catchInRegister);
   const tryBody: Uint8Array = byteStream.takeBytes(trySize);
   let catchBody: Uint8Array | undefined = undefined;
   if (hasCatchBlock) {
@@ -506,7 +512,7 @@ export function parseWithAction(byteStream: ReadableByteStream): actions.With {
 }
 
 export function parsePushAction(byteStream: ReadableByteStream): actions.Push {
-  const values: avm1.Value[] = [];
+  const values: Value[] = [];
   while (byteStream.available() > 0) {
     values.push(parseActionValue(byteStream));
   }
@@ -516,29 +522,29 @@ export function parsePushAction(byteStream: ReadableByteStream): actions.Push {
   };
 }
 
-export function parseActionValue(byteStream: ReadableByteStream): avm1.Value {
+export function parseActionValue(byteStream: ReadableByteStream): Value {
   const typeCode: Uint8 = byteStream.readUint8();
   switch (typeCode) {
     case 0:
-      return {type: avm1.ValueType.String, value: byteStream.readCString()};
+      return {type: ValueType.String, value: byteStream.readCString()};
     case 1:
-      return {type: avm1.ValueType.Float32, value: byteStream.readFloat32LE()};
+      return {type: ValueType.Float32, value: byteStream.readFloat32LE()};
     case 2:
-      return {type: avm1.ValueType.Null};
+      return {type: ValueType.Null};
     case 3:
-      return {type: avm1.ValueType.Undefined};
+      return {type: ValueType.Undefined};
     case 4:
-      return {type: avm1.ValueType.Register, value: byteStream.readUint8()};
+      return {type: ValueType.Register, value: byteStream.readUint8()};
     case 5:
-      return {type: avm1.ValueType.Boolean, value: byteStream.readUint8() !== 0};
+      return {type: ValueType.Boolean, value: byteStream.readUint8() !== 0};
     case 6:
-      return {type: avm1.ValueType.Float64, value: byteStream.readFloat64LE()};
+      return {type: ValueType.Float64, value: byteStream.readFloat64LE()};
     case 7:
-      return {type: avm1.ValueType.Sint32, value: byteStream.readSint32LE()};
+      return {type: ValueType.Sint32, value: byteStream.readSint32LE()};
     case 8:
-      return {type: avm1.ValueType.Constant, value: byteStream.readUint8() as Uint16};
+      return {type: ValueType.Constant, value: byteStream.readUint8() as Uint16};
     case 9:
-      return {type: avm1.ValueType.Constant, value: byteStream.readUint16LE()};
+      return {type: ValueType.Constant, value: byteStream.readUint16LE()};
     default:
       throw new Error(`Unknown type code: ${typeCode}`);
   }
@@ -555,16 +561,16 @@ export function parseJumpAction(byteStream: ReadableByteStream): actions.Jump {
 export function parseGetUrl2Action(byteStream: ReadableByteStream): actions.GetUrl2 {
   const bitStream: ReadableBitStream = byteStream.asBitStream();
 
-  let method: avm1.GetUrl2Method;
+  let method: GetUrl2Method;
   switch (bitStream.readUint16Bits(2)) {
     case 0:
-      method = avm1.GetUrl2Method.None;
+      method = GetUrl2Method.None;
       break;
     case 1:
-      method = avm1.GetUrl2Method.Get;
+      method = GetUrl2Method.Get;
       break;
     case 2:
-      method = avm1.GetUrl2Method.Post;
+      method = GetUrl2Method.Post;
       break;
     default:
       throw new Incident("UnexpectGetUrl2Method", "Unexpected value for the getUrl2 method");

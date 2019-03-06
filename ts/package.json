@@ -19,25 +19,25 @@
   },
   "dependencies": {
     "@open-flash/stream": "^0.1.0",
-    "avm1-tree": "^0.1.0",
+    "avm1-tree": "^0.2.0",
     "incident": "^3.2.0",
     "semantic-types": "^0.1.1"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
-    "@types/gulp": "^4.0.5",
+    "@types/gulp": "^4.0.6",
     "@types/minimist": "^1.2.0",
-    "@types/mocha": "^5.2.5",
-    "@types/node": "^10.12.18",
+    "@types/mocha": "^5.2.6",
+    "@types/node": "^11.10.4",
     "chai": "^4.2.0",
     "gulp": "^4.0.0",
     "gulp-cli": "^2.0.1",
     "kryo": "^0.8.1",
     "minimist": "^1.2.0",
     "ts-node": "^8.0.2",
-    "tslint": "^5.12.1",
+    "tslint": "^5.13.1",
     "turbo-gulp": "^0.18.0",
-    "typescript": "^3.2.4"
+    "typescript": "^3.3.3333"
   },
   "c88": {
     "match": [
