@@ -4,6 +4,12 @@
   "description": "AVM1 parser",
   "main": "dist/lib/index.js",
   "types": "dist/lib/index.d.ts",
+  "licenses": [
+    {
+      "type": "AGPL-3.0-or-later",
+      "url": "https://spdx.org/licenses/AGPL-3.0-or-later.html"
+    }
+  ],
   "keywords": [
     "swf",
     "parser"

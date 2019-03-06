@@ -8,7 +8,7 @@ homepage = "https://github.com/open-flash/avm1-parser"
 repository = "https://github.com/open-flash/avm1-parser"
 readme = "./README.md"
 keywords = ["ast", "swf", "avm1"]
-license = "MIT"
+license = "AGPL-3.0-or-later"
 edition = "2018"
 
 [lib]
