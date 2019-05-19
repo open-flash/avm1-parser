@@ -23,7 +23,7 @@ mod parser_tests {
     let json_path: String = path.replace(".avm1", ".json");
     let mut input_file = ::std::fs::File::open(path).unwrap();
     let mut input: Vec<u8> = Vec::new();
-    input_file.read_to_end(&mut input).expect("Unable to read file");
+    input_file.read_to_end(&mut input).expect("Failed to read AVM1 file");
 
     let (remaining_input, actual_action) = parse_action(&input).unwrap();
 

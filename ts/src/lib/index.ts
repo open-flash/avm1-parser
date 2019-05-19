@@ -3,6 +3,8 @@ import { Action } from "avm1-tree/action";
 import { UintSize } from "semantic-types";
 import { parseAction } from "./parsers/avm1";
 
+export { cfgFromBytes } from "./cfg-from-bytes";
+
 export class Avm1Parser {
   private readonly stream: ReadableStream;
 
