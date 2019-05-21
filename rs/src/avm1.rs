@@ -50,9 +50,9 @@ pub fn parse_get_url_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GetU
 pub fn parse_store_register_action(input: &[u8]) -> NomResult<&[u8], ast::actions::StoreRegister> {
   do_parse!(
     input,
-    register_number: parse_u8 >>
+    register: parse_u8 >>
     (ast::actions::StoreRegister {
-      register_number: register_number,
+      register: register,
     })
   )
 }
