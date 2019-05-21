@@ -263,9 +263,9 @@
     "@types/istanbul-lib-report" "*"
 
 "@types/lodash@^4.14.123":
-  version "4.14.129"
-  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.129.tgz#9aaca391db126802482655c48dd79a814488202f"
-  integrity sha512-oYaV0eSlnOacOr7i4X1FFdH8ttSlb57gu3I9MuStIv2CYkISEY84dNHYsC3bF6sNH7qYcu1BtVrCtQ8Q4KPTfQ==
+  version "4.14.130"
+  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.130.tgz#04b3a690d5f4fc34579963c99adae067b8c8eb5a"
+  integrity sha512-H++wk0tbneBsRVfLkgAAd0IIpmpVr2Bj4T0HncoOsQf3/xrJexRYQK2Tqo0Ej3pFslM8GkMgdis9bu6xIb1ycw==
 
 "@types/marked@^0.6.0":
   version "0.6.5"
@@ -676,10 +676,10 @@ atob@^2.1.1:
   resolved "https://registry.yarnpkg.com/atob/-/atob-2.1.2.tgz#6d9517eb9e030d2436666651e86bd9f6f13533c9"
   integrity sha512-Wm6ukoaOGJi/73p/cl2GvLjTI5JM1k/O14isD73YML8StrH/7/lRFgmg8nICZgD3bZZvjwCGxtMOD3wWNAu8cg==
 
-avm1-tree@^0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/avm1-tree/-/avm1-tree-0.2.0.tgz#ad75c14fbe295dd54c54e53fbdd256df8256030c"
-  integrity sha512-cGwIimxueMnBqODK56/9o6Y2GMbTzyo+ZhR1jqen+fOL98VWmcgj0pXbbQayKmyyDk2iv3+b/O6EB/An0pm0Og==
+avm1-tree@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/avm1-tree/-/avm1-tree-0.4.0.tgz#9482982b400c1504aea1223608ee3853caa097c9"
+  integrity sha512-lbty2gVEtzU/vQfw6wUi877rqKk8TsKz+InYSJg48nplnEwUQwZhDXn1TPajRnXhRumMIuM/JIKtUQoYsYZ0Wg==
   dependencies:
     incident "^3.2.0"
     kryo "^0.8.1"
@@ -4263,9 +4263,9 @@ typescript@^3.5.0-dev.20190430:
   integrity sha512-8Os3bqTeHc6bf+bkPFL3O/pb09j8SbDa2LUBxTXWpZlcHUW9ziGuiEFiqMcArkbAjGLqEzshkl4zvxhb0gVPuQ==
 
 uglify-js@^3.1.4:
-  version "3.5.13"
-  resolved "https://registry.yarnpkg.com/uglify-js/-/uglify-js-3.5.13.tgz#d2d8857b598d77f8764ae3bfcf90bb1df134d2bd"
-  integrity sha512-Lho+IJlquX6sdJgyKSJx/M9y4XbDd3ekPjD8S6HYmT5yVSwDtlSuca2w5hV4g2dIsp0Y/4orbfWxKexodmFv7w==
+  version "3.5.14"
+  resolved "https://registry.yarnpkg.com/uglify-js/-/uglify-js-3.5.14.tgz#edf2a322c37fd7173a954fb35af199b52fb10946"
+  integrity sha512-dgyjIw8KFK6AyVl5vm2tEqPewv5TKGEiiVFLI1LbF+oHua/Njd8tZk3lIbF1AWU1rNdEg7scaceADb4zqCcWXg==
   dependencies:
     commander "~2.20.0"
     source-map "~0.6.1"
