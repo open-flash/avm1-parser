@@ -1,4 +1,6 @@
-# Next
+# 0.4.1 (2019-05-21)
+
+### Typescript
 
 - **[Fix]** Skip overflows while parsing all raw actions.
 
