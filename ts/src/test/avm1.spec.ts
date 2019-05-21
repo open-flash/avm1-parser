@@ -79,7 +79,7 @@ function* getSamples(): IterableIterator<Sample> {
 
       if (BLACKLIST.has(name)) {
         continue;
-      } else if (WHITELIST.size > 0 && !WHITELIST.has(testName)) {
+      } else if (WHITELIST.size > 0 && !WHITELIST.has(name)) {
         continue;
       }
 

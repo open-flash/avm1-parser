@@ -26,7 +26,7 @@ function innerFromBytes(parser: Avm1Parser, sectionStart: UintSize, sectionEnd: 
     const curOffset: UintSize = openSet.pop()!;
     if (curOffset < sectionStart || curOffset >= sectionEnd) {
       (curOffset < sectionStart ? underflows : overflows).add(curOffset);
-      break;
+      continue;
     }
     const action: RawAction | undefined = parser.readAt(curOffset);
     if (action === undefined) {
@@ -203,13 +203,14 @@ function getUnlabelledOffset(offsetToAction: ReadonlyMap<UintSize, ParsedAction>
     endOffsetCounts.set(endOffset, count + 1);
   }
   // Offsets that do not need a label: they immediately follow another simple action.
-  // They are offset corresponding to a signle end and which are not jump or branchIfTrue targets
+  // They are offset corresponding to a single end and which are not jump or branchIfTrue targets
   const unlabelledOffsets: Set<UintSize> = new Set();
   for (const [endOffset, count] of endOffsetCounts) {
     if (count === 1 && offsetToAction.has(endOffset)) {
       unlabelledOffsets.add(endOffset);
     }
   }
+  // Ensure branch targets are labelled
   for (const {action, endOffset} of offsetToAction.values()) {
     if (action.action === ActionType.If || action.action === ActionType.Jump) {
       unlabelledOffsets.delete(endOffset + action.offset);
