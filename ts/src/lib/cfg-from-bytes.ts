@@ -3,7 +3,9 @@ import { ActionType } from "avm1-tree/action-type";
 import { Return, Throw } from "avm1-tree/actions";
 import { Cfg } from "avm1-tree/cfg";
 import { CfgAction } from "avm1-tree/cfg-action";
+import { CfgJump } from "avm1-tree/cfg-actions/cfg-jump";
 import { CfgBlock } from "avm1-tree/cfg-block";
+import { CfgBlockType } from "avm1-tree/cfg-block-type";
 import { UintSize } from "semantic-types";
 import { Avm1Parser } from "./index";
 
@@ -85,7 +87,9 @@ function toCfg(
     const label: string = offsetToLabel(labelledOffset);
     const actions: CfgAction[] = [];
     let next: string | undefined;
+    let lastActionType: ActionType | undefined;
     if (underflows.has(labelledOffset)) {
+      // tslint:disable-next-line:restrict-plus-operands
       next = offsetToLabel(labelledOffsets[idx + 1]);
     } else if (!overflows.has(labelledOffset)) {
       let offset: UintSize = labelledOffset;
@@ -171,6 +175,7 @@ function toCfg(
         }
         actions.push(action);
         if (parsed.action.action === ActionType.Jump || isNeverAction(parsed.action)) {
+          lastActionType = parsed.action.action;
           next = undefined;
           break;
         } else {
@@ -179,7 +184,22 @@ function toCfg(
         }
       } while (unlabelledOffsets.has(offset));
     }
-    blocks.push({label, actions, next});
+    if (lastActionType === ActionType.Return) {
+      blocks.push({type: CfgBlockType.Return, label, actions});
+    } else if (lastActionType === ActionType.Throw) {
+      blocks.push({type: CfgBlockType.Throw, label, actions});
+    } else {
+      if (next !== undefined) {
+        blocks.push({type: CfgBlockType.Simple, label, actions, next});
+      } else {
+        if (actions.length > 0 && actions[actions.length - 1].action === ActionType.Jump) {
+          const lastJump: CfgJump = actions.pop()! as CfgJump;
+          blocks.push({type: CfgBlockType.Simple, label, actions, next: lastJump.target});
+        } else {
+          blocks.push({type: CfgBlockType.End, label, actions});
+        }
+      }
+    }
   }
 
   return {blocks};
@@ -213,6 +233,7 @@ function getUnlabelledOffset(offsetToAction: ReadonlyMap<UintSize, ParsedAction>
   // Ensure branch targets are labelled
   for (const {action, endOffset} of offsetToAction.values()) {
     if (action.action === ActionType.If || action.action === ActionType.Jump) {
+      // tslint:disable-next-line:restrict-plus-operands
       unlabelledOffsets.delete(endOffset + action.offset);
     }
   }

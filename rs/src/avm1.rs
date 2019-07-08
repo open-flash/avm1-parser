@@ -258,12 +258,12 @@ pub fn parse_jump_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Jump> {
 pub fn parse_get_url2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GetUrl2> {
   bits!(input, do_parse!(
     // TODO: Use switch! and value!
-    send_vars_method: map!(
+    method: map!(
       take_bits!(u8, 2),
       |v| match v {
-        0 => ast::actions::get_url2::SendVarsMethod::None,
-        1 => ast::actions::get_url2::SendVarsMethod::Get,
-        2 => ast::actions::get_url2::SendVarsMethod::Post,
+        0 => ast::actions::get_url2::Method::None,
+        1 => ast::actions::get_url2::Method::Get,
+        2 => ast::actions::get_url2::Method::Post,
         _ => panic!("Unexpected value for `send_vars_method`."),
       }
     ) >>
@@ -271,7 +271,7 @@ pub fn parse_get_url2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Get
     load_target: parse_bool_bits >>
     load_variables: parse_bool_bits >>
     (ast::actions::GetUrl2 {
-      send_vars_method: send_vars_method,
+      method: method,
       load_target: load_target,
       load_variables: load_variables,
     })
