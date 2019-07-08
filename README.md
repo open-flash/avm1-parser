@@ -8,7 +8,7 @@
 [![npm](https://img.shields.io/npm/v/avm1-parser.svg)](https://www.npmjs.com/package/avm1-parser)
 [![crates.io](https://img.shields.io/crates/v/avm1-parser.svg)](https://crates.io/crates/avm1-parser)
 [![GitHub repository](https://img.shields.io/badge/Github-open--flash%2Favm1--parser-blue.svg)](https://github.com/open-flash/avm1-parser)
-[![Build status](https://img.shields.io/travis/open-flash/avm1-parser/master.svg)](https://travis-ci.org/open-flash/avm1-parser)
+[![Build status](https://img.shields.io/travis/com/open-flash/avm1-parser/master.svg)](https://travis-ci.com/open-flash/avm1-parser)
 
 AVM1 parser implemented in Rust and Typescript (Node and browser).
 Converts bytes to [`avm1-tree` control flow graphs][avm1-tree].

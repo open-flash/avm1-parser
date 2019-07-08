@@ -1,6 +1,7 @@
 # Next
 
 - **[Breaking change]** Update to `avm1-tree@0.5`.
+- **[Internal]** Switch to `travis-ci.com` for CI.
 
 # 0.4.1 (2019-05-21)
 
