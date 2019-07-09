@@ -2,11 +2,10 @@ extern crate avm1_tree;
 #[macro_use]
 extern crate nom;
 
-pub use self::avm1::{parse_action};
+pub use self::avm1::parse_action;
 
-mod basic_data_types;
 mod avm1;
-
+mod basic_data_types;
 
 #[cfg(test)]
 mod parser_tests {
@@ -32,7 +31,6 @@ mod parser_tests {
     let json_file = ::std::fs::File::open(json_path).unwrap();
     let reader = ::std::io::BufReader::new(json_file);
     let expected_action: Action = serde_json::from_reader(reader).unwrap();
-
 
     assert_eq!(actual_action, expected_action);
   }

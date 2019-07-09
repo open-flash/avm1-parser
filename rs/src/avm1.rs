@@ -1,6 +1,9 @@
 use avm1_tree as ast;
+use nom::{
+  le_f32 as parse_le_f32, le_f64 as parse_le_f64, le_i16 as parse_le_i16, le_i32 as parse_le_i32,
+  le_u16 as parse_le_u16, le_u8 as parse_u8,
+};
 use nom::{IResult as NomResult, Needed};
-use nom::{le_f32 as parse_le_f32, le_f64 as parse_le_f64, le_i16 as parse_le_i16, le_i32 as parse_le_i32, le_u16 as parse_le_u16, le_u8 as parse_u8};
 
 use super::basic_data_types::{parse_bool_bits, parse_c_string, skip_bits};
 
@@ -15,10 +18,23 @@ pub fn parse_action_header(input: &[u8]) -> NomResult<&[u8], ActionHeader> {
   match parse_u8(input) {
     Ok((remaining_input, action_code)) => {
       if action_code < 0x80 {
-        Ok((remaining_input, ActionHeader { action_code: action_code, length: 0 }))
+        Ok((
+          remaining_input,
+          ActionHeader {
+            action_code: action_code,
+            length: 0,
+          },
+        ))
       } else {
-        parse_le_u16(remaining_input)
-          .map(|(i, length)| (i, ActionHeader { action_code: action_code, length: length as usize }))
+        parse_le_u16(remaining_input).map(|(i, length)| {
+          (
+            i,
+            ActionHeader {
+              action_code: action_code,
+              length: length as usize,
+            },
+          )
+        })
       }
     }
     Err(e) => Err(e),
@@ -28,84 +44,75 @@ pub fn parse_action_header(input: &[u8]) -> NomResult<&[u8], ActionHeader> {
 pub fn parse_goto_frame_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GotoFrame> {
   do_parse!(
     input,
-    frame: parse_le_u16 >>
-    (ast::actions::GotoFrame {
-      frame: frame as usize,
-    })
+    frame: parse_le_u16 >> (ast::actions::GotoFrame { frame: frame as usize })
   )
 }
 
 pub fn parse_get_url_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GetUrl> {
   do_parse!(
     input,
-    url: parse_c_string >>
-    target: parse_c_string >>
-    (ast::actions::GetUrl {
-      url: url,
-      target: target,
-    })
+    url: parse_c_string
+      >> target: parse_c_string
+      >> (ast::actions::GetUrl {
+        url: url,
+        target: target,
+      })
   )
 }
 
 pub fn parse_store_register_action(input: &[u8]) -> NomResult<&[u8], ast::actions::StoreRegister> {
   do_parse!(
     input,
-    register: parse_u8 >>
-    (ast::actions::StoreRegister {
-      register: register,
-    })
+    register: parse_u8 >> (ast::actions::StoreRegister { register: register })
   )
 }
 
 pub fn parse_constant_pool_action(input: &[u8]) -> NomResult<&[u8], ast::actions::ConstantPool> {
   do_parse!(
     input,
-    constant_pool: length_count!(parse_le_u16, parse_c_string) >>
-    (ast::actions::ConstantPool {
-      constant_pool: constant_pool,
-    })
+    constant_pool: length_count!(parse_le_u16, parse_c_string)
+      >> (ast::actions::ConstantPool {
+        constant_pool: constant_pool,
+      })
   )
 }
 
 pub fn parse_wait_for_frame_action(input: &[u8]) -> NomResult<&[u8], ast::actions::WaitForFrame> {
   do_parse!(
     input,
-    frame: parse_le_u16 >>
-    skip_count: parse_u8 >>
-    (ast::actions::WaitForFrame {
-      frame: frame as usize,
-      skip_count: skip_count as usize,
-    })
+    frame: parse_le_u16
+      >> skip_count: parse_u8
+      >> (ast::actions::WaitForFrame {
+        frame: frame as usize,
+        skip_count: skip_count as usize,
+      })
   )
 }
 
 pub fn parse_set_target_action(input: &[u8]) -> NomResult<&[u8], ast::actions::SetTarget> {
   do_parse!(
     input,
-    target_name: parse_c_string >>
-    (ast::actions::SetTarget {
-      target_name: target_name,
-    })
+    target_name: parse_c_string
+      >> (ast::actions::SetTarget {
+        target_name: target_name,
+      })
   )
 }
 
 pub fn parse_goto_label_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GoToLabel> {
   do_parse!(
     input,
-    label: parse_c_string >>
-    (ast::actions::GoToLabel {
-      label: label,
-    })
+    label: parse_c_string >> (ast::actions::GoToLabel { label: label })
   )
 }
 
 pub fn parse_wait_for_frame2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::WaitForFrame2> {
   do_parse!(
     input,
-    skip_count: parse_u8 >>
-    (ast::actions::WaitForFrame2 {
-      skip_count: skip_count as usize,
-    })
+    skip_count: parse_u8
+      >> (ast::actions::WaitForFrame2 {
+        skip_count: skip_count as usize,
+      })
   )
 }
 
@@ -127,50 +134,60 @@ struct DefineFunction2Flags {
 pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::DefineFunction2> {
   do_parse!(
     input,
-    name: parse_c_string >>
-    parameter_count: parse_le_u16 >>
-    register_count: parse_u8 >>
-    flags: bits!(do_parse!(
-      preload_parent: call!(parse_bool_bits) >>
-      preload_root: call!(parse_bool_bits) >>
-      suppress_super: call!(parse_bool_bits) >>
-      preload_super: call!(parse_bool_bits) >>
-      suppress_arguments: call!(parse_bool_bits) >>
-      preload_arguments: call!(parse_bool_bits) >>
-      suppress_this: call!(parse_bool_bits) >>
-      preload_this: call!(parse_bool_bits) >>
-      apply!(skip_bits, 7) >>
-      preload_global: call!(parse_bool_bits) >>
-      (DefineFunction2Flags {
-        preload_parent: preload_parent,
-        preload_root: preload_root,
-        suppress_super: suppress_super,
-        preload_super: preload_super,
-        suppress_arguments: suppress_arguments,
-        preload_arguments: preload_arguments,
-        suppress_this: suppress_this,
-        preload_this: preload_this,
-        preload_global: preload_global,
+    name: parse_c_string
+      >> parameter_count: parse_le_u16
+      >> register_count: parse_u8
+      >> flags:
+        bits!(do_parse!(
+          preload_parent: call!(parse_bool_bits)
+            >> preload_root: call!(parse_bool_bits)
+            >> suppress_super: call!(parse_bool_bits)
+            >> preload_super: call!(parse_bool_bits)
+            >> suppress_arguments: call!(parse_bool_bits)
+            >> preload_arguments: call!(parse_bool_bits)
+            >> suppress_this: call!(parse_bool_bits)
+            >> preload_this: call!(parse_bool_bits)
+            >> apply!(skip_bits, 7)
+            >> preload_global: call!(parse_bool_bits)
+            >> (DefineFunction2Flags {
+              preload_parent: preload_parent,
+              preload_root: preload_root,
+              suppress_super: suppress_super,
+              preload_super: preload_super,
+              suppress_arguments: suppress_arguments,
+              preload_arguments: preload_arguments,
+              suppress_this: suppress_this,
+              preload_this: preload_this,
+              preload_global: preload_global,
+            })
+        ))
+      >> parameters:
+        count!(
+          map!(pair!(parse_u8, parse_c_string), |p: (u8, String)| {
+            ast::actions::define_function2::Parameter {
+              register: p.0,
+              name: p.1,
+            }
+          }),
+          parameter_count as usize
+        )
+      >> code_size: parse_le_u16
+      >> body: take!(code_size as usize)
+      >> (ast::actions::DefineFunction2 {
+        name: name,
+        preload_parent: flags.preload_parent,
+        preload_root: flags.preload_root,
+        suppress_super: flags.suppress_super,
+        preload_super: flags.preload_super,
+        suppress_arguments: flags.suppress_arguments,
+        preload_arguments: flags.preload_arguments,
+        suppress_this: flags.suppress_this,
+        preload_this: flags.preload_this,
+        preload_global: flags.preload_global,
+        register_count: register_count as usize,
+        parameters: parameters,
+        body: body.to_vec(),
       })
-    )) >>
-    parameters: count!(map!(pair!(parse_u8, parse_c_string), |p: (u8, String)| ast::actions::define_function2::Parameter {register: p.0, name: p.1}), parameter_count as usize) >>
-    code_size: parse_le_u16 >>
-    body: take!(code_size as usize) >>
-    (ast::actions::DefineFunction2 {
-      name: name,
-      preload_parent: flags.preload_parent,
-      preload_root: flags.preload_root,
-      suppress_super: flags.suppress_super,
-      preload_super: flags.preload_super,
-      suppress_arguments: flags.suppress_arguments,
-      preload_arguments: flags.preload_arguments,
-      suppress_this: flags.suppress_this,
-      preload_this: flags.preload_this,
-      preload_global: flags.preload_global,
-      register_count: register_count as usize,
-      parameters: parameters,
-      body: body.to_vec(),
-    })
   )
 }
 
@@ -185,37 +202,34 @@ fn parse_catch_target(input: &[u8], catch_in_register: bool) -> NomResult<&[u8],
 pub fn parse_try_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Try> {
   do_parse!(
     input,
-    flags: bits!(do_parse!(
-      apply!(skip_bits, 5) >>
-      catch_in_register: parse_bool_bits >>
-      finally_block: parse_bool_bits >>
-      catch_block: parse_bool_bits >>
-      ((catch_in_register, catch_block, finally_block))
-    )) >>
-    try_size: parse_le_u16 >>
-    catch_size: parse_le_u16 >>
-    finally_size: parse_le_u16 >>
-    catch_target: call!(parse_catch_target, flags.0) >>
-    try_body: take!(try_size as usize) >>
-    catch_body: cond!(flags.1, map!(take!(catch_size as usize), |slice| slice.to_vec())) >>
-    finally_body: cond!(flags.2, map!(take!(finally_size as usize), |slice| slice.to_vec())) >>
-    (ast::actions::Try {
-      r#try: try_body.to_vec(),
-      catch_target: catch_target,
-      catch: catch_body,
-      finally: finally_body,
-    })
+    flags:
+      bits!(do_parse!(
+        apply!(skip_bits, 5)
+          >> catch_in_register: parse_bool_bits
+          >> finally_block: parse_bool_bits
+          >> catch_block: parse_bool_bits
+          >> ((catch_in_register, catch_block, finally_block))
+      ))
+      >> try_size: parse_le_u16
+      >> catch_size: parse_le_u16
+      >> finally_size: parse_le_u16
+      >> catch_target: call!(parse_catch_target, flags.0)
+      >> try_body: take!(try_size as usize)
+      >> catch_body: cond!(flags.1, map!(take!(catch_size as usize), |slice| slice.to_vec()))
+      >> finally_body: cond!(flags.2, map!(take!(finally_size as usize), |slice| slice.to_vec()))
+      >> (ast::actions::Try {
+        r#try: try_body.to_vec(),
+        catch_target: catch_target,
+        catch: catch_body,
+        finally: finally_body,
+      })
   )
 }
 
 pub fn parse_with_action(input: &[u8]) -> NomResult<&[u8], ast::actions::With> {
   do_parse!(
     input,
-    body_size: parse_le_i16 >>
-    body: take!(body_size as usize) >>
-    (ast::actions::With {
-      with: body.to_vec(),
-    })
+    body_size: parse_le_i16 >> body: take!(body_size as usize) >> (ast::actions::With { with: body.to_vec() })
   )
 }
 
@@ -237,10 +251,7 @@ fn parse_action_value(input: &[u8]) -> NomResult<&[u8], ast::Value> {
 pub fn parse_push_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Push> {
   let res = do_parse!(
     input,
-    values: many1!(complete!(parse_action_value)) >>
-    (ast::actions::Push {
-      values: values,
-    })
+    values: many1!(complete!(parse_action_value)) >> (ast::actions::Push { values: values })
   );
   res
 }
@@ -248,79 +259,70 @@ pub fn parse_push_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Push> {
 pub fn parse_jump_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Jump> {
   do_parse!(
     input,
-    branch_offset: parse_le_i16 >>
-    (ast::actions::Jump {
-      offset: branch_offset,
-    })
+    branch_offset: parse_le_i16 >> (ast::actions::Jump { offset: branch_offset })
   )
 }
 
 pub fn parse_get_url2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GetUrl2> {
-  bits!(input, do_parse!(
-    // TODO: Use switch! and value!
-    method: map!(
-      take_bits!(u8, 2),
-      |v| match v {
+  bits!(
+    input,
+    do_parse!(
+      // TODO: Use switch! and value!
+      method: map!(take_bits!(u8, 2), |v| match v {
         0 => ast::actions::get_url2::Method::None,
         1 => ast::actions::get_url2::Method::Get,
         2 => ast::actions::get_url2::Method::Post,
         _ => panic!("Unexpected value for `send_vars_method`."),
-      }
-    ) >>
-    apply!(skip_bits, 4) >>
-    load_target: parse_bool_bits >>
-    load_variables: parse_bool_bits >>
-    (ast::actions::GetUrl2 {
-      method: method,
-      load_target: load_target,
-      load_variables: load_variables,
-    })
-  ))
+      }) >> apply!(skip_bits, 4)
+        >> load_target: parse_bool_bits
+        >> load_variables: parse_bool_bits
+        >> (ast::actions::GetUrl2 {
+          method: method,
+          load_target: load_target,
+          load_variables: load_variables,
+        })
+    )
+  )
 }
 
 pub fn parse_define_function_action(input: &[u8]) -> NomResult<&[u8], ast::actions::DefineFunction> {
   do_parse!(
     input,
-    name: parse_c_string >>
-    parameter_count: parse_le_u16 >>
-    parameters: count!(parse_c_string, parameter_count as usize) >>
-    code_size: parse_le_u16 >>
-    body: take!(code_size as usize) >>
-    (ast::actions::DefineFunction {
-      name: name,
-      parameters: parameters,
-      body: body.to_vec(),
-    })
+    name: parse_c_string
+      >> parameter_count: parse_le_u16
+      >> parameters: count!(parse_c_string, parameter_count as usize)
+      >> code_size: parse_le_u16
+      >> body: take!(code_size as usize)
+      >> (ast::actions::DefineFunction {
+        name: name,
+        parameters: parameters,
+        body: body.to_vec(),
+      })
   )
 }
 
 pub fn parse_if_action(input: &[u8]) -> NomResult<&[u8], ast::actions::If> {
   do_parse!(
     input,
-    branch_offset: parse_le_i16 >>
-    (ast::actions::If {
-      offset: branch_offset,
-    })
+    branch_offset: parse_le_i16 >> (ast::actions::If { offset: branch_offset })
   )
 }
 
 pub fn parse_goto_frame2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::GotoFrame2> {
   do_parse!(
     input,
-    flags: bits!(do_parse!(
-      apply!(skip_bits, 6) >>
-      scene_bias: parse_bool_bits >>
-      play: parse_bool_bits >>
-      ((scene_bias, play))
-    )) >>
-    scene_bias: cond!(flags.0, parse_le_u16) >>
-    (ast::actions::GotoFrame2 {
-      play: flags.1,
-      scene_bias: match scene_bias {
-        Some(b) => b as usize,
-        None => 0,
-      },
-    })
+    flags:
+      bits!(do_parse!(
+        apply!(skip_bits, 6) >> scene_bias: parse_bool_bits >> play: parse_bool_bits >> ((scene_bias, play))
+      ))
+      >> scene_bias: cond!(flags.0, parse_le_u16)
+      >> (ast::actions::GotoFrame2 {
+        play: flags.1,
+        scene_bias: match scene_bias {
+          Some(b) => b as usize,
+          None => 0,
+        },
+      })
   )
 }
 
@@ -416,35 +418,50 @@ pub fn parse_action(input: &[u8]) -> NomResult<&[u8], ast::Action> {
           0x69 => Ok((remaining_input, ast::Action::Extends)),
           0x81 => map!(remaining_input, parse_goto_frame_action, |a| ast::Action::GotoFrame(a)),
           0x83 => map!(remaining_input, parse_get_url_action, |a| ast::Action::GetUrl(a)),
-          0x87 => map!(remaining_input, parse_store_register_action, |a| ast::Action::StoreRegister(a)),
-          0x88 => map!(remaining_input, parse_constant_pool_action, |a| ast::Action::ConstantPool(a)),
-          0x8a => map!(remaining_input, parse_wait_for_frame_action, |a| ast::Action::WaitForFrame(a)),
+          0x87 => map!(remaining_input, parse_store_register_action, |a| {
+            ast::Action::StoreRegister(a)
+          }),
+          0x88 => map!(remaining_input, parse_constant_pool_action, |a| {
+            ast::Action::ConstantPool(a)
+          }),
+          0x8a => map!(remaining_input, parse_wait_for_frame_action, |a| {
+            ast::Action::WaitForFrame(a)
+          }),
           0x8b => map!(remaining_input, parse_set_target_action, |a| ast::Action::SetTarget(a)),
           0x8c => map!(remaining_input, parse_goto_label_action, |a| ast::Action::GotoLabel(a)),
-          0x8d => map!(remaining_input, parse_wait_for_frame2_action, |a| ast::Action::WaitForFrame2(a)),
-          0x8e => map!(remaining_input, parse_define_function2_action, |a| ast::Action::DefineFunction2(a)),
+          0x8d => map!(remaining_input, parse_wait_for_frame2_action, |a| {
+            ast::Action::WaitForFrame2(a)
+          }),
+          0x8e => map!(remaining_input, parse_define_function2_action, |a| {
+            ast::Action::DefineFunction2(a)
+          }),
           0x8f => map!(remaining_input, parse_try_action, |a| ast::Action::Try(a)),
           0x94 => map!(remaining_input, parse_with_action, |a| ast::Action::With(a)),
           0x96 => map!(remaining_input, parse_push_action, |a| ast::Action::Push(a)),
           0x99 => map!(remaining_input, parse_jump_action, |a| ast::Action::Jump(a)),
           0x9a => map!(remaining_input, parse_get_url2_action, |a| ast::Action::GetUrl2(a)),
-          0x9b => map!(remaining_input, parse_define_function_action, |a| ast::Action::DefineFunction(a)),
+          0x9b => map!(remaining_input, parse_define_function_action, |a| {
+            ast::Action::DefineFunction(a)
+          }),
           0x9d => map!(remaining_input, parse_if_action, |a| ast::Action::If(a)),
           0x9e => Ok((remaining_input, ast::Action::Call)),
-          0x9f => map!(remaining_input, parse_goto_frame2_action, |a| ast::Action::GotoFrame2(a)),
-          _ => {
-            Ok((
-              &remaining_input[ah.length..],
-              ast::Action::Unknown(ast::actions::UnknownAction { code: ah.action_code, data: (&remaining_input[..ah.length]).to_vec() })
-            ))
-          }
+          0x9f => map!(remaining_input, parse_goto_frame2_action, |a| ast::Action::GotoFrame2(
+            a
+          )),
+          _ => Ok((
+            &remaining_input[ah.length..],
+            ast::Action::Unknown(ast::actions::UnknownAction {
+              code: ah.action_code,
+              data: (&remaining_input[..ah.length]).to_vec(),
+            }),
+          )),
         };
         match result {
           Ok((remaining_input2, action)) => {
             // TODO: Check that we consumed at least ah.length
             Ok((remaining_input2, action))
           }
-          a => a
+          a => a,
         }
       }
     }
@@ -466,11 +483,7 @@ mod tests {
       let expected = Ok((
         &[][..],
         ast::actions::Push {
-          values: vec![
-            ast::Value::Register(0),
-            ast::Value::Sint32(1),
-            ast::Value::Constant(2),
-          ]
+          values: vec![ast::Value::Register(0), ast::Value::Sint32(1), ast::Value::Constant(2)],
         },
       ));
       assert_eq!(actual, expected);
@@ -481,9 +494,7 @@ mod tests {
       let expected = Ok((
         &[][..],
         ast::actions::Push {
-          values: vec![
-            ast::Value::String(String::from("")),
-          ]
+          values: vec![ast::Value::String(String::from(""))],
         },
       ));
       assert_eq!(actual, expected);
@@ -494,9 +505,7 @@ mod tests {
       let expected = Ok((
         &[][..],
         ast::actions::Push {
-          values: vec![
-            ast::Value::String(String::from("\x01")),
-          ]
+          values: vec![ast::Value::String(String::from("\x01"))],
         },
       ));
       assert_eq!(actual, expected);
@@ -507,27 +516,81 @@ mod tests {
   fn test_parse_action_header() {
     {
       let input = vec![0b00000000, 0b00000000, 0b00000000, 0b00000000];
-      assert_eq!(parse_action_header(&input[..]), Ok((&input[1..], ActionHeader { action_code: 0x00, length: 0 })));
+      assert_eq!(
+        parse_action_header(&input[..]),
+        Ok((
+          &input[1..],
+          ActionHeader {
+            action_code: 0x00,
+            length: 0
+          }
+        ))
+      );
     }
     {
       let input = vec![0b00000001, 0b00000000, 0b00000000, 0b00000000];
-      assert_eq!(parse_action_header(&input[..]), Ok((&input[1..], ActionHeader { action_code: 0x01, length: 0 })));
+      assert_eq!(
+        parse_action_header(&input[..]),
+        Ok((
+          &input[1..],
+          ActionHeader {
+            action_code: 0x01,
+            length: 0
+          }
+        ))
+      );
     }
     {
       let input = vec![0b00010000, 0b00000000, 0b00000000, 0b00000000];
-      assert_eq!(parse_action_header(&input[..]), Ok((&input[1..], ActionHeader { action_code: 0x10, length: 0 })));
+      assert_eq!(
+        parse_action_header(&input[..]),
+        Ok((
+          &input[1..],
+          ActionHeader {
+            action_code: 0x10,
+            length: 0
+          }
+        ))
+      );
     }
     {
       let input = vec![0b10000000, 0b00000000, 0b00000000, 0b00000000];
-      assert_eq!(parse_action_header(&input[..]), Ok((&input[3..], ActionHeader { action_code: 0x80, length: 0 })));
+      assert_eq!(
+        parse_action_header(&input[..]),
+        Ok((
+          &input[3..],
+          ActionHeader {
+            action_code: 0x80,
+            length: 0
+          }
+        ))
+      );
     }
     {
       let input = vec![0b10000000, 0b00000001, 0b00000000, 0b00000000];
-      assert_eq!(parse_action_header(&input[..]), Ok((&input[3..], ActionHeader { action_code: 0x80, length: 1 })));
+      assert_eq!(
+        parse_action_header(&input[..]),
+        Ok((
+          &input[3..],
+          ActionHeader {
+            action_code: 0x80,
+            length: 1
+          }
+        ))
+      );
     }
     {
       let input = vec![0b10000000, 0b00000000, 0b00000001, 0b00000000];
-      assert_eq!(parse_action_header(&input[..]), Ok((&input[3..], ActionHeader { action_code: 0x80, length: 256 })));
+      assert_eq!(
+        parse_action_header(&input[..]),
+        Ok((
+          &input[3..],
+          ActionHeader {
+            action_code: 0x80,
+            length: 256
+          }
+        ))
+      );
     }
   }
 
@@ -537,14 +600,26 @@ mod tests {
       let input = vec![0b00000001, 0b00000000, 0b00000000, 0b00000000];
       assert_eq!(
         parse_action(&input[..]),
-        Ok((&input[1..], ast::Action::Unknown(ast::actions::UnknownAction { code: 0x01, data: Vec::new() })))
+        Ok((
+          &input[1..],
+          ast::Action::Unknown(ast::actions::UnknownAction {
+            code: 0x01,
+            data: Vec::new()
+          })
+        ))
       );
     }
     {
       let input = vec![0b10000000, 0b00000001, 0b00000000, 0b00000011];
       assert_eq!(
         parse_action(&input[..]),
-        Ok((&input[4..], ast::Action::Unknown(ast::actions::UnknownAction { code: 0x80, data: vec![0x03] })))
+        Ok((
+          &input[4..],
+          ast::Action::Unknown(ast::actions::UnknownAction {
+            code: 0x80,
+            data: vec![0x03]
+          })
+        ))
       );
     }
     {

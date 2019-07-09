@@ -17,7 +17,10 @@ pub fn parse_bool_bits((input_slice, bit_pos): (&[u8], usize)) -> NomResult<(&[u
 /// Parse a null-terminated sequence of bytes. The null byte is consumed but not included in the
 /// result.
 pub fn parse_c_string(input: &[u8]) -> NomResult<&[u8], String> {
-  map!(input, take_until_and_consume!("\x00"), |str: &[u8]| String::from_utf8(str.to_vec()).unwrap())
+  map!(input, take_until_and_consume!("\x00"), |str: &[u8]| String::from_utf8(
+    str.to_vec()
+  )
+  .unwrap())
 }
 
 /// Skip `n` bits
