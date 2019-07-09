@@ -3,6 +3,10 @@
 - **[Breaking change]** Update to `avm1-tree@0.5`.
 - **[Internal]** Switch to `travis-ci.com` for CI.
 
+## Rust
+
+- **[Internal]** Add `rustfmt` support.
+
 # 0.4.1 (2019-05-21)
 
 ### Typescript
