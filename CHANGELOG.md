@@ -1,3 +1,7 @@
+# Next
+
+- **[Breaking change]** Update to `avm1-tree@0.6`.
+
 # 0.5.0 (2019-07-09)
 
 - **[Breaking change]** Update to `avm1-tree@0.5`.

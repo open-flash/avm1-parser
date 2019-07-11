@@ -36,9 +36,29 @@ function innerFromBytes(parser: Avm1Parser, sectionStart: UintSize, sectionEnd: 
       overflows.add(curOffset);
       continue;
     }
-    const endOffset: UintSize = parser.getBytePos();
+    let endOffset: UintSize = parser.getBytePos();
     if (endOffset <= curOffset) {
       throw new Error("ExpectedBytePos to advance");
+    }
+    switch (action.action) {
+      case ActionType.DefineFunction:
+      case ActionType.DefineFunction2:
+        endOffset += action.bodySize;
+        break;
+      case ActionType.Try:
+        endOffset += action.trySize;
+        if (action.catchSize !== undefined) {
+          endOffset += action.catchSize;
+        }
+        if (action.finallySize !== undefined) {
+          endOffset += action.finallySize;
+        }
+        break;
+      case ActionType.With:
+        endOffset += action.withSize;
+        break;
+      default:
+        break;
     }
     offsetToAction.set(curOffset, {action, endOffset});
     const nextOffsets: UintSize[] = [];
@@ -101,7 +121,7 @@ function toCfg(
         let action: CfgAction;
         switch (parsed.action.action) {
           case ActionType.DefineFunction: {
-            const body: Cfg = innerFromBytes(parser, parsed.endOffset - parsed.action.body.length, parsed.endOffset);
+            const body: Cfg = innerFromBytes(parser, parsed.endOffset - parsed.action.bodySize, parsed.endOffset);
             action = {
               action: ActionType.DefineFunction,
               name: parsed.action.name,
@@ -111,7 +131,7 @@ function toCfg(
             break;
           }
           case ActionType.DefineFunction2: {
-            const body: Cfg = innerFromBytes(parser, parsed.endOffset - parsed.action.body.length, parsed.endOffset);
+            const body: Cfg = innerFromBytes(parser, parsed.endOffset - parsed.action.bodySize, parsed.endOffset);
             action = {
               action: ActionType.DefineFunction2,
               name: parsed.action.name,
@@ -141,16 +161,16 @@ function toCfg(
           case ActionType.Try: {
             let curEnd: number = parsed.endOffset;
             let finallyCfg: Cfg | undefined;
-            if (parsed.action.finally !== undefined) {
-              finallyCfg = innerFromBytes(parser, curEnd - parsed.action.finally.length, curEnd);
-              curEnd -= parsed.action.finally.length;
+            if (parsed.action.finallySize !== undefined) {
+              finallyCfg = innerFromBytes(parser, curEnd - parsed.action.finallySize, curEnd);
+              curEnd -= parsed.action.finallySize;
             }
             let catchCfg: Cfg | undefined;
-            if (parsed.action.catch !== undefined) {
-              catchCfg = innerFromBytes(parser, curEnd - parsed.action.catch.length, curEnd);
-              curEnd -= parsed.action.catch.length;
+            if (parsed.action.catchSize !== undefined) {
+              catchCfg = innerFromBytes(parser, curEnd - parsed.action.catchSize, curEnd);
+              curEnd -= parsed.action.catchSize;
             }
-            const tryCfg: Cfg = innerFromBytes(parser, curEnd - parsed.action.try.length, curEnd);
+            const tryCfg: Cfg = innerFromBytes(parser, curEnd - parsed.action.trySize, curEnd);
             action = {
               action: ActionType.Try,
               try: tryCfg,
@@ -161,7 +181,7 @@ function toCfg(
             break;
           }
           case ActionType.With: {
-            const body: Cfg = innerFromBytes(parser, parsed.endOffset - parsed.action.with.length, parsed.endOffset);
+            const body: Cfg = innerFromBytes(parser, parsed.endOffset - parsed.action.withSize, parsed.endOffset);
             action = {
               action: ActionType.With,
               with: body,

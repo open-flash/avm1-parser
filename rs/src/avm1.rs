@@ -171,8 +171,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
           }),
           parameter_count as usize
         )
-      >> code_size: parse_le_u16
-      >> body: take!(code_size as usize)
+      >> body_size: parse_le_u16
       >> (ast::actions::DefineFunction2 {
         name: name,
         preload_parent: flags.preload_parent,
@@ -186,7 +185,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
         preload_global: flags.preload_global,
         register_count: register_count as usize,
         parameters: parameters,
-        body: body.to_vec(),
+        body_size: body_size,
       })
   )
 }
@@ -214,14 +213,11 @@ pub fn parse_try_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Try> {
       >> catch_size: parse_le_u16
       >> finally_size: parse_le_u16
       >> catch_target: call!(parse_catch_target, flags.0)
-      >> try_body: take!(try_size as usize)
-      >> catch_body: cond!(flags.1, map!(take!(catch_size as usize), |slice| slice.to_vec()))
-      >> finally_body: cond!(flags.2, map!(take!(finally_size as usize), |slice| slice.to_vec()))
       >> (ast::actions::Try {
-        r#try: try_body.to_vec(),
+        try_size: try_size,
         catch_target: catch_target,
-        catch: catch_body,
-        finally: finally_body,
+        catch_size: if flags.1 { Some(catch_size) } else { None },
+        finally_size: if flags.2 { Some(finally_size) } else { None },
       })
   )
 }
@@ -229,7 +225,7 @@ pub fn parse_try_action(input: &[u8]) -> NomResult<&[u8], ast::actions::Try> {
 pub fn parse_with_action(input: &[u8]) -> NomResult<&[u8], ast::actions::With> {
   do_parse!(
     input,
-    body_size: parse_le_i16 >> body: take!(body_size as usize) >> (ast::actions::With { with: body.to_vec() })
+    with_size: parse_le_u16 >> (ast::actions::With { with_size: with_size })
   )
 }
 
@@ -291,12 +287,11 @@ pub fn parse_define_function_action(input: &[u8]) -> NomResult<&[u8], ast::actio
     name: parse_c_string
       >> parameter_count: parse_le_u16
       >> parameters: count!(parse_c_string, parameter_count as usize)
-      >> code_size: parse_le_u16
-      >> body: take!(code_size as usize)
+      >> body_size: parse_le_u16
       >> (ast::actions::DefineFunction {
         name: name,
         parameters: parameters,
-        body: body.to_vec(),
+        body_size: body_size,
       })
   )
 }

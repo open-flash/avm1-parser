@@ -442,9 +442,7 @@ export function parseDefineFunction2Action(byteStream: ReadableByteStream): acti
     const name: string = byteStream.readCString();
     parameters.push({register, name});
   }
-  const codeSize: UintSize = byteStream.readUint16LE();
-  // The action length stops here for parseDefineFunction2Action
-  const body: Uint8Array = byteStream.takeBytes(codeSize);
+  const bodySize: Uint16 = byteStream.readUint16LE();
 
   return {
     action: ActionType.DefineFunction2,
@@ -460,7 +458,7 @@ export function parseDefineFunction2Action(byteStream: ReadableByteStream): acti
     preloadGlobal,
     registerCount,
     parameters,
-    body,
+    bodySize,
   };
 }
 
@@ -483,31 +481,20 @@ export function parseTryAction(byteStream: ReadableByteStream): actions.Try {
   const catchSize: Uint16 = byteStream.readUint16LE();
   const finallySize: Uint16 = byteStream.readUint16LE();
   const catchTarget: CatchTarget = parseCatchTarget(byteStream, catchInRegister);
-  const tryBody: Uint8Array = byteStream.takeBytes(trySize);
-  let catchBody: Uint8Array | undefined = undefined;
-  if (hasCatchBlock) {
-    catchBody = byteStream.takeBytes(catchSize);
-  }
-  let finallyBody: Uint8Array | undefined = undefined;
-  if (hasFinallyBlock) {
-    finallyBody = byteStream.takeBytes(finallySize);
-  }
   return {
     action: ActionType.Try,
-    try: tryBody,
-    catch: catchBody,
+    trySize,
+    catchSize: hasCatchBlock ? catchSize : undefined,
     catchTarget,
-    finally: finallyBody,
+    finallySize: hasFinallyBlock ? finallySize : undefined,
   };
 }
 
 export function parseWithAction(byteStream: ReadableByteStream): actions.With {
   const withSize: Uint16 = byteStream.readUint16LE();
-  // The action length stops here for parseWithAction
-  const withBody: Uint8Array = byteStream.takeBytes(withSize);
   return {
     action: ActionType.With,
-    with: withBody,
+    withSize,
   };
 }
 
@@ -596,15 +583,13 @@ export function parseDefineFunctionAction(byteStream: ReadableByteStream): actio
   for (let i: number = 0; i < parameterCount; i++) {
     parameters.push(byteStream.readCString());
   }
-  const bodySize: UintSize = byteStream.readUint16LE();
-  // The action length stops here for parseDefineFunctionAction
-  const body: Uint8Array = byteStream.takeBytes(bodySize);
+  const bodySize: Uint16 = byteStream.readUint16LE();
 
   return {
     action: ActionType.DefineFunction,
     name,
     parameters,
-    body,
+    bodySize,
   };
 }
 
