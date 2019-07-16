@@ -1,6 +1,6 @@
 {
   "name": "avm1-parser",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "description": "AVM1 parser",
   "main": "dist/lib/index.js",
   "types": "dist/lib/index.d.ts",
