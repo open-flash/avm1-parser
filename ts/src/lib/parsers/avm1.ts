@@ -335,7 +335,7 @@ export function parseAction(byteStream: ReadableByteStream): Action {
       result = parseGotoFrame2Action(byteStream);
       break;
     default:
-      result = {action: ActionType.Unknown, actionCode: header.actionCode};
+      result = {action: ActionType.Unknown, code: header.actionCode};
       byteStream.skip(header.length);
       break;
   }

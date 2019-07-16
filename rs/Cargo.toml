@@ -20,7 +20,7 @@ name = "avm1-parser"
 path = "src/main.rs"
 
 [dependencies]
-avm1-tree = "^0.6.0"
+avm1-tree = "^0.7.0"
 nom = "^4.2.2"
 
 [dev-dependencies]
