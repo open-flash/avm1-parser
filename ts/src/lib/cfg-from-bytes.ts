@@ -5,16 +5,24 @@ import { Cfg } from "avm1-tree/cfg";
 import { CfgAction } from "avm1-tree/cfg-action";
 import { CfgBlock } from "avm1-tree/cfg-block";
 import { CfgBlockType } from "avm1-tree/cfg-block-type";
-import { CfgLabel } from "avm1-tree/cfg-label";
+import { CfgLabel, NullableCfgLabel } from "avm1-tree/cfg-label";
 import { UintSize } from "semantic-types";
 import { Avm1Parser } from "./index";
 
+type IdProvider = () => number;
+
+function createIdProvider(): IdProvider {
+  let id: number = 0;
+  return () => id++;
+}
+
 export function cfgFromBytes(avm1: Uint8Array): Cfg {
   const avm1Parser: Avm1Parser = new Avm1Parser(avm1);
-  return parseHardBlock(avm1Parser, 0, avm1.length);
+  return parseHardBlock(avm1Parser, 0, avm1.length, createIdProvider());
 }
 
 interface SoftBlock {
+  id: number;
   actions: Map<UintSize, ParsedAction>;
   outJumps: Set<UintSize>;
   jumpTargets: Set<UintSize>;
@@ -29,7 +37,8 @@ interface ParsedAction {
   endOffset: UintSize;
 }
 
-function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: UintSize): SoftBlock {
+function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: UintSize, idp: IdProvider): SoftBlock {
+  const id: number = idp();
   // Map from start offset to raw action and end offest.
   const parsed: Map<UintSize, ParsedAction> = new Map();
   const outJumps: Set<UintSize> = new Set();
@@ -104,16 +113,16 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
         break;
       case ActionType.Try: {
         let tryOffset: UintSize = endOffset;
-        const softTry: SoftBlock = parseSoftBlock(parser, tryOffset, tryOffset + raw.trySize);
+        const softTry: SoftBlock = parseSoftBlock(parser, tryOffset, tryOffset + raw.trySize, idp);
         tryOffset += raw.trySize;
         let softCatch: SoftBlock | undefined;
         if (raw.catchSize !== undefined) {
-          softCatch = parseSoftBlock(parser, tryOffset, tryOffset + raw.catchSize);
+          softCatch = parseSoftBlock(parser, tryOffset, tryOffset + raw.catchSize, idp);
           tryOffset += raw.catchSize;
         }
         let softFinally: SoftBlock | undefined;
         if (raw.finallySize !== undefined) {
-          softFinally = parseSoftBlock(parser, tryOffset, tryOffset + raw.finallySize);
+          softFinally = parseSoftBlock(parser, tryOffset, tryOffset + raw.finallySize, idp);
           tryOffset += raw.finallySize;
         }
         for (const outJump of softTry.outJumps) {
@@ -142,7 +151,7 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
       case ActionType.With: {
         const withStart: UintSize = endOffset;
         const withEnd: UintSize = withStart + raw.withSize;
-        const inner: SoftBlock = parseSoftBlock(parser, withStart, withEnd);
+        const inner: SoftBlock = parseSoftBlock(parser, withStart, withEnd, idp);
         for (const outJump of inner.outJumps) {
           nextOffsets.add(outJump);
           jumpTargets.add(outJump);
@@ -166,6 +175,7 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
     }
   }
   return {
+    id,
     actions: parsed,
     outJumps,
     jumpTargets,
@@ -186,13 +196,17 @@ function resolveLabels(
   soft: SoftBlock,
   parentLabels?: Map<UintSize, CfgLabel | null>,
 ): Map<UintSize, string | null> {
-  const offsetToLabel: Map<UintSize, string | null> = new Map();
+  function toLabel(offset: number): CfgLabel {
+    return `l${soft.id}_${offset}`;
+  }
+
+  const offsetToLabel: Map<UintSize, NullableCfgLabel> = new Map();
   if (soft.actions.has(soft.start)) {
-    offsetToLabel.set(soft.start, `label_p${soft.start}`);
+    offsetToLabel.set(soft.start, toLabel(soft.start));
   }
   for (const offset of soft.actions.keys()) {
     if (soft.jumpTargets.has(offset) || soft.simpleTargets.get(offset) !== 1) {
-      offsetToLabel.set(offset, `label_p${offset}`);
+      offsetToLabel.set(offset, toLabel(offset));
     }
   }
   for (const end of soft.endOfActions) {
@@ -202,7 +216,7 @@ function resolveLabels(
     // hard block
     for (const outJump of soft.outJumps) {
       if (outJump < soft.start) {
-        offsetToLabel.set(outJump, `label_p${soft.start}`);
+        offsetToLabel.set(outJump, toLabel(soft.start));
       }
       if (outJump >= soft.end || soft.endOfActions.has(outJump)) {
         offsetToLabel.set(outJump, null);
@@ -227,13 +241,13 @@ function resolveLabels(
   return sortedResult;
 }
 
-function parseHardBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: UintSize): Cfg {
-  const soft: SoftBlock = parseSoftBlock(parser, blockStart, blockEnd);
+function parseHardBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: UintSize, idp: IdProvider): Cfg {
+  const soft: SoftBlock = parseSoftBlock(parser, blockStart, blockEnd, idp);
   const labels: Map<UintSize, string | null> = resolveLabels(soft, undefined);
-  return buildCfg(parser, soft, labels);
+  return buildCfg(parser, soft, labels, idp);
 }
 
-function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, string | null>): Cfg {
+function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, string | null>, idp: IdProvider): Cfg {
   const blocks: CfgBlock[] = [];
   iterateLabels: for (const [labelOffset, label] of labels) {
     if (label === null || !(soft.start <= labelOffset && labelOffset < soft.end)) {
@@ -253,7 +267,7 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
       switch (parsedAction.raw.action) {
         case ActionType.DefineFunction: {
           const bodyEnd: UintSize = parsedAction.endOffset + parsedAction.raw.bodySize;
-          const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd);
+          const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd, idp);
           actions.push({
             action: ActionType.DefineFunction,
             name: parsedAction.raw.name,
@@ -265,7 +279,7 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
         }
         case ActionType.DefineFunction2: {
           const bodyEnd: UintSize = parsedAction.endOffset + parsedAction.raw.bodySize;
-          const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd);
+          const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd, idp);
           actions.push({
             action: ActionType.DefineFunction2,
             name: parsedAction.raw.name,
@@ -323,18 +337,18 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           let finallyCfg: Cfg | undefined;
           if (finallySoftBlock !== undefined) {
             const finallyLabels: Map<UintSize, CfgLabel | null> = resolveLabels(finallySoftBlock, labels);
-            finallyCfg = buildCfg(parser, finallySoftBlock, finallyLabels);
+            finallyCfg = buildCfg(parser, finallySoftBlock, finallyLabels, idp);
             tryCatchParentLabels = new Map([...tryCatchParentLabels]);
             tryCatchParentLabels.set(finallySoftBlock.start, finallyLabels.get(finallySoftBlock.start)!);
           }
 
           const tryLabels: Map<UintSize, CfgLabel | null> = resolveLabels(trySoftBlock, tryCatchParentLabels);
-          const tryCfg: Cfg = buildCfg(parser, trySoftBlock, tryLabels);
+          const tryCfg: Cfg = buildCfg(parser, trySoftBlock, tryLabels, idp);
 
           let catchCfg: Cfg | undefined;
           if (catchSoftBlock !== undefined) {
             const catchLabels: Map<UintSize, CfgLabel | null> = resolveLabels(catchSoftBlock, tryCatchParentLabels);
-            catchCfg = buildCfg(parser, catchSoftBlock, catchLabels);
+            catchCfg = buildCfg(parser, catchSoftBlock, catchLabels, idp);
           }
           blocks.push({
             type: CfgBlockType.Try,
@@ -351,7 +365,7 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           const withSoft: SoftBlock = (parsedAction as any).with;
           // tslint:disable-next-line
           const withLabels: Map<UintSize, CfgLabel | null> = resolveLabels(withSoft, labels);
-          const withCfg: Cfg = buildCfg(parser, withSoft, withLabels);
+          const withCfg: Cfg = buildCfg(parser, withSoft, withLabels, idp);
           blocks.push({type: CfgBlockType.With, label, actions, with: withCfg});
           continue iterateLabels;
         }

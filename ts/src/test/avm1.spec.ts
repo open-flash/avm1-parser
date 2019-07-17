@@ -17,8 +17,6 @@ const JSON_VALUE_WRITER: JsonValueWriter = new JsonValueWriter();
 // `BLACKLIST` can be used to forcefully skip some tests.
 const BLACKLIST: ReadonlySet<string> = new Set([
   "avm1-bytes/corrupted-push",
-  "try/try-jump-to-catch-throw-finally",
-  // "try/try-catch-err-jump-catch-try",
 ]);
 // `WHITELIST` can be used to only enable a few tests.
 const WHITELIST: ReadonlySet<string> = new Set([

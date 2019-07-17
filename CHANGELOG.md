@@ -1,3 +1,9 @@
+# Next
+
+### Typescript
+
+- **[Fix]** Add soft-block identifier to labels.
+
 # 0.7.0 (2019-07-16)
 
 - **[Breaking change]** Update to `avm1-tree@0.7`.
