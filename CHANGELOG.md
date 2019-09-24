@@ -2,6 +2,10 @@
 
 - **[Breaking change]** Update to `avm1-tree@0.8`.
 
+### Typescript
+
+- **[Fix]** Add initial support for parse errors.
+
 # 0.7.1 (2019-07-17)
 
 ### Typescript

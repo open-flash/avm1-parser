@@ -1,4 +1,4 @@
-import { Action as RawAction } from "avm1-tree/action";
+import { Action as ValidRawAction } from "avm1-tree/action";
 import { ActionType } from "avm1-tree/action-type";
 import { Try } from "avm1-tree/actions/try";
 import { Cfg } from "avm1-tree/cfg";
@@ -8,6 +8,9 @@ import { CfgBlockType } from "avm1-tree/cfg-block-type";
 import { CfgLabel, NullableCfgLabel } from "avm1-tree/cfg-label";
 import { UintSize } from "semantic-types";
 import { Avm1Parser } from "./index";
+import { ParseError } from "./parsers/parse-error";
+
+type RawAction = ValidRawAction | ParseError;
 
 type IdProvider = () => number;
 
@@ -308,6 +311,10 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           });
           offset = bodyEnd;
           break;
+        }
+        case "error": {
+          blocks.push({type: CfgBlockType.Error, label, actions});
+          continue iterateLabels;
         }
         case ActionType.If: {
           const ifTrue: string | null | undefined = labels.get(parsedAction.endOffset + parsedAction.raw.offset);

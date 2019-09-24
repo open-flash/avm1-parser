@@ -16,7 +16,7 @@ const JSON_READER: JsonReader = new JsonReader();
 const JSON_VALUE_WRITER: JsonValueWriter = new JsonValueWriter();
 // `BLACKLIST` can be used to forcefully skip some tests.
 const BLACKLIST: ReadonlySet<string> = new Set([
-  "avm1-bytes/corrupted-push",
+  // "avm1-bytes/corrupted-push",
 ]);
 // `WHITELIST` can be used to only enable a few tests.
 const WHITELIST: ReadonlySet<string> = new Set([
@@ -41,7 +41,7 @@ describe("avm1", function () {
         throw err;
       }
       const actualJson: string = JSON.stringify($Cfg.write(JSON_VALUE_WRITER, actualCfg), null, 2);
-      await writeTextFile(sysPath.join(sample.root, "cfg.json"), `${actualJson}\n`);
+      await writeTextFile(sysPath.join(sample.root, "local-cfg.ts.json"), `${actualJson}\n`);
       const expectedCfgJson: string = await readTextFile(sample.cfgPath);
       const expectedCfg: Cfg = $Cfg.read(JSON_READER, expectedCfgJson);
       try {

@@ -10,6 +10,7 @@ import { Value } from "avm1-tree/value";
 import { ValueType } from "avm1-tree/value-type";
 import { Incident } from "incident";
 import { Uint16, Uint8, UintSize } from "semantic-types";
+import { ParseError } from "./parse-error";
 
 export interface ActionHeader {
   actionCode: Uint8;
@@ -23,7 +24,7 @@ export function parseActionHeader(byteStream: ReadableByteStream): ActionHeader 
 }
 
 // tslint:disable-next-line:cyclomatic-complexity
-export function parseAction(byteStream: ReadableByteStream): Action {
+export function parseAction(byteStream: ReadableByteStream): Action | ParseError {
   // const startPos: number = byteStream.bytePos;
   const header: ActionHeader = parseActionHeader(byteStream);
   if (byteStream.available() < header.length) {
@@ -32,7 +33,7 @@ export function parseAction(byteStream: ReadableByteStream): Action {
     // throw createIncompleteStreamError(headerLength + header.length);
   }
   const actionDataStartPos: number = byteStream.bytePos;
-  let result: Action;
+  let result: Action | ParseError;
   switch (header.actionCode) {
     case 0x04:
       result = {action: ActionType.NextFrame};
@@ -498,15 +499,19 @@ export function parseWithAction(byteStream: ReadableByteStream): actions.With {
   };
 }
 
-export function parsePushAction(byteStream: ReadableByteStream): actions.Push {
-  const values: Value[] = [];
-  while (byteStream.available() > 0) {
-    values.push(parseActionValue(byteStream));
+export function parsePushAction(byteStream: ReadableByteStream): actions.Push | ParseError {
+  try {
+    const values: Value[] = [];
+    while (byteStream.available() > 0) {
+      values.push(parseActionValue(byteStream));
+    }
+    return {
+      action: ActionType.Push,
+      values,
+    };
+  } catch (err) {
+    return {action: "error", message: err.message};
   }
-  return {
-    action: ActionType.Push,
-    values,
-  };
 }
 
 export function parseActionValue(byteStream: ReadableByteStream): Value {
@@ -533,7 +538,7 @@ export function parseActionValue(byteStream: ReadableByteStream): Value {
     case 9:
       return {type: ValueType.Constant, value: byteStream.readUint16LE()};
     default:
-      throw new Error(`Unknown type code: ${typeCode}`);
+      throw new Incident("UnknownPushValueTypeCode", {typeCode});
   }
 }
 

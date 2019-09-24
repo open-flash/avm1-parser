@@ -5,6 +5,7 @@ import { JsonReader } from "kryo/readers/json";
 import { JsonValueWriter } from "kryo/writers/json-value";
 import sysPath from "path";
 import { Avm1Parser } from "../lib";
+import { ParseError } from "../lib/parsers/parse-error";
 import meta from "./meta.js";
 
 const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..", "..", "..");
@@ -26,14 +27,18 @@ describe("readJson", function () {
       );
       const expected: Action = $Action.read(JSON_READER, expectedJson);
       const parser: Avm1Parser = new Avm1Parser(input);
-      const actual: Action | undefined = parser.readNext();
-      chai.assert.isDefined(actual);
+      const uncheckedActual: Action | ParseError | undefined = parser.readNext();
+      chai.assert.isDefined(uncheckedActual);
+      if (uncheckedActual === undefined || uncheckedActual.action === "error") {
+        throw chai.assert.fail("Unexpected ParseError");
+      }
+      const actual: Action = uncheckedActual!;
       chai.assert.strictEqual(parser.getBytePos(), input.length, "Parsing should consume the whole input");
       try {
-        chai.assert.isTrue($Action.equals(actual!, expected));
+        chai.assert.isTrue($Action.equals(actual, expected));
       } catch (err) {
         chai.assert.strictEqual(
-          JSON.stringify($Action.write(JSON_VALUE_WRITER, actual!), null, 2),
+          JSON.stringify($Action.write(JSON_VALUE_WRITER, actual), null, 2),
           JSON.stringify($Action.write(JSON_VALUE_WRITER, expected), null, 2),
         );
         throw err;
