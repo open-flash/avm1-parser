@@ -1,7 +1,7 @@
 import { ReadableStream } from "@open-flash/stream";
 import { Action } from "avm1-tree/action";
 import { UintSize } from "semantic-types";
-import { parseAction } from "./parsers/avm1";
+import { ActionHeader, parseAction, parseActionHeader } from "./parsers/avm1";
 
 export { cfgFromBytes } from "./cfg-from-bytes";
 
@@ -29,5 +29,14 @@ export class Avm1Parser {
   readAt(offset: UintSize): Action | undefined {
     this.stream.bytePos = offset;
     return this.readNext();
+  }
+
+  skipFrom(offset: UintSize, skipCount: UintSize): UintSize {
+    this.stream.bytePos = offset;
+    for (let skipped: UintSize = 0; skipped < skipCount; skipped++) {
+      const header: ActionHeader = parseActionHeader(this.stream);
+      this.stream.skip(header.length);
+    }
+    return this.stream.bytePos;
   }
 }

@@ -96,7 +96,7 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
         nextOffsets.add(endOffset);
         parsed.set(curOffset, {raw, endOffset});
         jumpTargets.add(endOffset + raw.offset);
-        incSimpleTarget(endOffset);
+        jumpTargets.add(endOffset);
         break;
       }
       case ActionType.Jump: {
@@ -146,6 +146,16 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
           }
         }
         parsed.set(curOffset, {raw, endOffset, try: softTry, catch: softCatch, finally: softFinally} as any);
+        break;
+      }
+      case ActionType.WaitForFrame:
+      case ActionType.WaitForFrame2: {
+        const notLoadedOffset: UintSize = parser.skipFrom(endOffset, raw.skipCount);
+        nextOffsets.add(notLoadedOffset);
+        nextOffsets.add(endOffset);
+        parsed.set(curOffset, {raw, endOffset, notLoadedOffset} as any);
+        jumpTargets.add(notLoadedOffset);
+        jumpTargets.add(endOffset);
         break;
       }
       case ActionType.With: {
@@ -300,13 +310,16 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           break;
         }
         case ActionType.If: {
-          const target: string | null | undefined = labels.get(parsedAction.endOffset + parsedAction.raw.offset);
-          if (target === undefined) {
-            throw new Error("ExpectedJumpTargetToHaveALabel");
+          const ifTrue: string | null | undefined = labels.get(parsedAction.endOffset + parsedAction.raw.offset);
+          if (ifTrue === undefined) {
+            throw new Error("ExpectedIfTargetToHaveALabel");
           }
-          actions.push({action: ActionType.If, target});
-          offset = parsedAction.endOffset;
-          break;
+          const ifFalse: string | null | undefined = labels.get(parsedAction.endOffset);
+          if (ifFalse === undefined) {
+            throw new Error("ExpectedIfTargetToHaveALabel");
+          }
+          blocks.push({type: CfgBlockType.If, label, actions, ifTrue, ifFalse});
+          continue iterateLabels;
         }
         case ActionType.Jump: {
           const target: string | null | undefined = labels.get(parsedAction.endOffset + parsedAction.raw.offset);
@@ -367,6 +380,31 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           const withLabels: Map<UintSize, CfgLabel | null> = resolveLabels(withSoft, labels);
           const withCfg: Cfg = buildCfg(parser, withSoft, withLabels, idp);
           blocks.push({type: CfgBlockType.With, label, actions, with: withCfg});
+          continue iterateLabels;
+        }
+        case ActionType.WaitForFrame: {
+          const ifLoaded: string | null | undefined = labels.get(parsedAction.endOffset);
+          if (ifLoaded === undefined) {
+            throw new Error("ExpectedWaitForFrameIfLoadedToHaveALabel");
+          }
+          const ifNotLoaded: string | null | undefined = labels.get((parsedAction as any).notLoadedOffset);
+          if (ifNotLoaded === undefined) {
+            throw new Error("ExpectedWaitForFrameIfNotLoadedToHaveALabel");
+          }
+          const frame: UintSize = parsedAction.raw.frame;
+          blocks.push({type: CfgBlockType.WaitForFrame, label, actions, frame, ifLoaded, ifNotLoaded});
+          continue iterateLabels;
+        }
+        case ActionType.WaitForFrame2: {
+          const ifLoaded: string | null | undefined = labels.get(parsedAction.endOffset);
+          if (ifLoaded === undefined) {
+            throw new Error("ExpectedWaitForFrame2IfLoadedToHaveALabel");
+          }
+          const ifNotLoaded: string | null | undefined = labels.get((parsedAction as any).notLoadedOffset);
+          if (ifNotLoaded === undefined) {
+            throw new Error("ExpectedWaitForFrame2IfNotLoadedToHaveALabel");
+          }
+          blocks.push({type: CfgBlockType.WaitForFrame2, label, actions, ifLoaded, ifNotLoaded});
           continue iterateLabels;
         }
         default:

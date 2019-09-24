@@ -1,3 +1,7 @@
+# Next
+
+- **[Breaking change]** Update to `avm1-tree@0.8`.
+
 # 0.7.1 (2019-07-17)
 
 ### Typescript

@@ -41,7 +41,7 @@ describe("avm1", function () {
         throw err;
       }
       const actualJson: string = JSON.stringify($Cfg.write(JSON_VALUE_WRITER, actualCfg), null, 2);
-      await writeTextFile(sysPath.join(sample.root, "local-cfg.ts.json"), `${actualJson}\n`);
+      await writeTextFile(sysPath.join(sample.root, "cfg.json"), `${actualJson}\n`);
       const expectedCfgJson: string = await readTextFile(sample.cfgPath);
       const expectedCfg: Cfg = $Cfg.read(JSON_READER, expectedCfgJson);
       try {

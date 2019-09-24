@@ -1,3 +1,3 @@
-# SWF parser
+# AVM1 parser
 
-**TODO**
+Converts bytes to AVM1 raw actions or control-flow graphs.

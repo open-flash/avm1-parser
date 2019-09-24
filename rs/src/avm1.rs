@@ -183,7 +183,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], ast::acti
         suppress_this: flags.suppress_this,
         preload_this: flags.preload_this,
         preload_global: flags.preload_global,
-        register_count: register_count as usize,
+        register_count: register_count,
         parameters: parameters,
         body_size: body_size,
       })
