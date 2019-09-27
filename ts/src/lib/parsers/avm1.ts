@@ -1,16 +1,15 @@
 import { ReadableBitStream, ReadableByteStream } from "@open-flash/stream";
-import { Action } from "avm1-tree/action";
-import { ActionType } from "avm1-tree/action-type";
-import * as actions from "avm1-tree/actions";
-import { CatchTarget } from "avm1-tree/catch-target";
-import { CatchTargetType } from "avm1-tree/catch-targets/_type";
-import { GetUrl2Method } from "avm1-tree/get-url2-method";
-import { Parameter as DefineFunction2Parameter } from "avm1-tree/parameter";
-import { Value } from "avm1-tree/value";
-import { ValueType } from "avm1-tree/value-type";
+import { Action } from "avm1-types/action";
+import { ActionType } from "avm1-types/action-type";
+import * as actions from "avm1-types/actions";
+import { CatchTarget } from "avm1-types/catch-target";
+import { CatchTargetType } from "avm1-types/catch-targets/_type";
+import { GetUrl2Method } from "avm1-types/get-url2-method";
+import { Parameter as DefineFunction2Parameter } from "avm1-types/parameter";
+import { Value } from "avm1-types/value";
+import { ValueType } from "avm1-types/value-type";
 import { Incident } from "incident";
 import { Uint16, Uint8, UintSize } from "semantic-types";
-import { ParseError } from "./parse-error";
 
 export interface ActionHeader {
   actionCode: Uint8;
@@ -24,7 +23,7 @@ export function parseActionHeader(byteStream: ReadableByteStream): ActionHeader 
 }
 
 // tslint:disable-next-line:cyclomatic-complexity
-export function parseAction(byteStream: ReadableByteStream): Action | ParseError {
+export function parseAction(byteStream: ReadableByteStream): Action {
   // const startPos: number = byteStream.bytePos;
   const header: ActionHeader = parseActionHeader(byteStream);
   if (byteStream.available() < header.length) {
@@ -33,7 +32,7 @@ export function parseAction(byteStream: ReadableByteStream): Action | ParseError
     // throw createIncompleteStreamError(headerLength + header.length);
   }
   const actionDataStartPos: number = byteStream.bytePos;
-  let result: Action | ParseError;
+  let result: Action;
   switch (header.actionCode) {
     case 0x04:
       result = {action: ActionType.NextFrame};
@@ -336,8 +335,7 @@ export function parseAction(byteStream: ReadableByteStream): Action | ParseError
       result = parseGotoFrame2Action(byteStream);
       break;
     default:
-      result = {action: ActionType.Unknown, code: header.actionCode};
-      byteStream.skip(header.length);
+      result = {action: ActionType.Unknown, code: header.actionCode, data: byteStream.takeBytes(header.length)};
       break;
   }
   const actionDataLength: number = byteStream.bytePos - actionDataStartPos;
@@ -499,7 +497,7 @@ export function parseWithAction(byteStream: ReadableByteStream): actions.With {
   };
 }
 
-export function parsePushAction(byteStream: ReadableByteStream): actions.Push | ParseError {
+export function parsePushAction(byteStream: ReadableByteStream): actions.Push | actions.Error {
   try {
     const values: Value[] = [];
     while (byteStream.available() > 0) {
@@ -509,8 +507,8 @@ export function parsePushAction(byteStream: ReadableByteStream): actions.Push | 
       action: ActionType.Push,
       values,
     };
-  } catch (err) {
-    return {action: "error", message: err.message};
+  } catch (error) {
+    return {action: ActionType.Error, error};
   }
 }
 

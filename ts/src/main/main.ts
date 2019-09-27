@@ -1,4 +1,4 @@
-import { $Action, Action } from "avm1-tree";
+import { $Action, Action } from "avm1-types";
 import * as fs from "fs";
 import { JsonValueWriter } from "kryo/writers/json-value";
 import * as sysPath from "path";

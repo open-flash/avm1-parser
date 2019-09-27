@@ -1,11 +1,10 @@
-import { $Action, Action } from "avm1-tree/action";
+import { $Action, Action } from "avm1-types/action";
 import chai from "chai";
 import fs from "fs";
 import { JsonReader } from "kryo/readers/json";
 import { JsonValueWriter } from "kryo/writers/json-value";
 import sysPath from "path";
 import { Avm1Parser } from "../lib";
-import { ParseError } from "../lib/parsers/parse-error";
 import meta from "./meta.js";
 
 const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..", "..", "..");
@@ -27,10 +26,9 @@ describe("readJson", function () {
       );
       const expected: Action = $Action.read(JSON_READER, expectedJson);
       const parser: Avm1Parser = new Avm1Parser(input);
-      const uncheckedActual: Action | ParseError | undefined = parser.readNext();
-      chai.assert.isDefined(uncheckedActual);
-      if (uncheckedActual === undefined || uncheckedActual.action === "error") {
-        throw chai.assert.fail("Unexpected ParseError");
+      const uncheckedActual: Action | undefined = parser.readNext();
+      if (uncheckedActual === undefined) {
+        chai.assert.isDefined(uncheckedActual);
       }
       const actual: Action = uncheckedActual!;
       chai.assert.strictEqual(parser.getBytePos(), input.length, "Parsing should consume the whole input");

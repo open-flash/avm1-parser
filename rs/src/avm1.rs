@@ -1,4 +1,4 @@
-use avm1_tree as ast;
+use avm1_types as ast;
 use nom::{
   le_f32 as parse_le_f32, le_f64 as parse_le_f64, le_i16 as parse_le_i16, le_i32 as parse_le_i32,
   le_u16 as parse_le_u16, le_u8 as parse_u8,

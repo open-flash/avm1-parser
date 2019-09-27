@@ -1,16 +1,14 @@
-import { Action as ValidRawAction } from "avm1-tree/action";
-import { ActionType } from "avm1-tree/action-type";
-import { Try } from "avm1-tree/actions/try";
-import { Cfg } from "avm1-tree/cfg";
-import { CfgAction } from "avm1-tree/cfg-action";
-import { CfgBlock } from "avm1-tree/cfg-block";
-import { CfgBlockType } from "avm1-tree/cfg-block-type";
-import { CfgLabel, NullableCfgLabel } from "avm1-tree/cfg-label";
+import { Action as RawAction } from "avm1-types/action";
+import { ActionType } from "avm1-types/action-type";
+import { Try } from "avm1-types/actions/try";
+import { Cfg } from "avm1-types/cfg";
+import { CfgAction } from "avm1-types/cfg-action";
+import { CfgBlock } from "avm1-types/cfg-block";
+import { CfgBlockType } from "avm1-types/cfg-block-type";
+import { CfgSimpleBlock } from "avm1-types/cfg-blocks/cfg-simple-block";
+import { CfgLabel, NullableCfgLabel } from "avm1-types/cfg-label";
 import { UintSize } from "semantic-types";
 import { Avm1Parser } from "./index";
-import { ParseError } from "./parsers/parse-error";
-
-type RawAction = ValidRawAction | ParseError;
 
 type IdProvider = () => number;
 
@@ -257,10 +255,16 @@ function resolveLabels(
 function parseHardBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: UintSize, idp: IdProvider): Cfg {
   const soft: SoftBlock = parseSoftBlock(parser, blockStart, blockEnd, idp);
   const labels: Map<UintSize, string | null> = resolveLabels(soft, undefined);
-  return buildCfg(parser, soft, labels, idp);
+  return buildCfg(parser, soft, labels, idp, null);
 }
 
-function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, string | null>, idp: IdProvider): Cfg {
+function buildCfg(
+  parser: Avm1Parser,
+  soft: SoftBlock,
+  labels: Map<UintSize, string | null>,
+  idp: IdProvider,
+  defaultNext: NullableCfgLabel | undefined,
+): Cfg {
   const blocks: CfgBlock[] = [];
   iterateLabels: for (const [labelOffset, label] of labels) {
     if (label === null || !(soft.start <= labelOffset && labelOffset < soft.end)) {
@@ -312,8 +316,12 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           offset = bodyEnd;
           break;
         }
-        case "error": {
-          blocks.push({type: CfgBlockType.Error, label, actions});
+        case ActionType.End: {
+          blocks.push({type: CfgBlockType.Simple, label, actions, next: null});
+          continue iterateLabels;
+        }
+        case ActionType.Error: {
+          blocks.push({type: CfgBlockType.Error, label, actions, error: parsedAction.raw.error});
           continue iterateLabels;
         }
         case ActionType.If: {
@@ -352,23 +360,23 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
           const finallySoftBlock: SoftBlock | undefined = (parsedAction as any).finally;
 
           // Either `labels`, or `labels` with a jump to the start of the finally block.
-          let tryCatchParentLabels: Map<UintSize, CfgLabel | null> = labels;
+          let tryCatchOuterLabels: Map<UintSize, CfgLabel | null> = labels;
 
           let finallyCfg: Cfg | undefined;
           if (finallySoftBlock !== undefined) {
-            const finallyLabels: Map<UintSize, CfgLabel | null> = resolveLabels(finallySoftBlock, labels);
-            finallyCfg = buildCfg(parser, finallySoftBlock, finallyLabels, idp);
-            tryCatchParentLabels = new Map([...tryCatchParentLabels]);
-            tryCatchParentLabels.set(finallySoftBlock.start, finallyLabels.get(finallySoftBlock.start)!);
+            const finallyLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(finallySoftBlock, labels);
+            finallyCfg = buildCfg(parser, finallySoftBlock, finallyLabels, idp, labels.get(finallySoftBlock.end));
+            tryCatchOuterLabels = new Map([...tryCatchOuterLabels]);
+            tryCatchOuterLabels.set(finallySoftBlock.start, finallyLabels.get(finallySoftBlock.start)!);
           }
 
-          const tryLabels: Map<UintSize, CfgLabel | null> = resolveLabels(trySoftBlock, tryCatchParentLabels);
-          const tryCfg: Cfg = buildCfg(parser, trySoftBlock, tryLabels, idp);
+          const tryLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(trySoftBlock, tryCatchOuterLabels);
+          const tryCfg: Cfg = buildCfg(parser, trySoftBlock, tryLabels, idp, tryCatchOuterLabels.get(trySoftBlock.end));
 
           let catchCfg: Cfg | undefined;
           if (catchSoftBlock !== undefined) {
-            const catchLabels: Map<UintSize, CfgLabel | null> = resolveLabels(catchSoftBlock, tryCatchParentLabels);
-            catchCfg = buildCfg(parser, catchSoftBlock, catchLabels, idp);
+            const catchLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(catchSoftBlock, tryCatchOuterLabels);
+            catchCfg = buildCfg(parser, catchSoftBlock, catchLabels, idp, tryCatchOuterLabels.get(catchSoftBlock.end));
           }
           blocks.push({
             type: CfgBlockType.Try,
@@ -384,8 +392,8 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
         case ActionType.With: {
           const withSoft: SoftBlock = (parsedAction as any).with;
           // tslint:disable-next-line
-          const withLabels: Map<UintSize, CfgLabel | null> = resolveLabels(withSoft, labels);
-          const withCfg: Cfg = buildCfg(parser, withSoft, withLabels, idp);
+          const withLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(withSoft, labels);
+          const withCfg: Cfg = buildCfg(parser, withSoft, withLabels, idp, labels.get(withSoft.end));
           blocks.push({type: CfgBlockType.With, label, actions, with: withCfg});
           continue iterateLabels;
         }
@@ -426,5 +434,18 @@ function buildCfg(parser: Avm1Parser, soft: SoftBlock, labels: Map<UintSize, str
     }
     blocks.push({type: CfgBlockType.Simple, label, actions, next});
   }
-  return {blocks};
+  if (blocks.length === 0) {
+    if (defaultNext === undefined) {
+      throw new Error("AssertionError: Empty CFG without known `defaultNext`");
+    }
+    const head: CfgSimpleBlock = {
+      type: CfgBlockType.Simple,
+      label: `l${soft.id}`,
+      actions: [],
+      next: defaultNext,
+    };
+    return {head, tail: []};
+  } else {
+    return {head: blocks[0], tail: blocks.slice(1)};
+  }
 }

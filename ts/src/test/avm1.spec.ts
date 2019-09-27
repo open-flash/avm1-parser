@@ -1,4 +1,4 @@
-import { $Cfg, Cfg } from "avm1-tree/cfg";
+import { $Cfg, Cfg } from "avm1-types/cfg";
 import chai from "chai";
 import fs from "fs";
 import { JsonReader } from "kryo/readers/json";

@@ -1,4 +1,3 @@
-extern crate avm1_tree;
 #[macro_use]
 extern crate nom;
 
@@ -11,8 +10,7 @@ mod basic_data_types;
 mod parser_tests {
   use ::std::io::Read;
 
-  use ::avm1_tree::Action;
-
+  use ::avm1_types::Action;
   use ::test_generator::test_expand_paths;
 
   use super::*;
