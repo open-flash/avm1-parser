@@ -1,4 +1,6 @@
-# Next
+# 0.9.1 (2019-09-28)
+
+## Typescript
 
 - **[Fix]** Add support for fall-through over empty blocks (especially over empty but defined `finally`).
 

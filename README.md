@@ -11,7 +11,7 @@
 [![Build status](https://img.shields.io/travis/com/open-flash/avm1-parser/master.svg)](https://travis-ci.com/open-flash/avm1-parser)
 
 AVM1 parser implemented in Rust and Typescript (Node and browser).
-Converts bytes to [`avm1-tree` control flow graphs][avm1-tree].
+Converts bytes to [`avm1-types` control flow graphs][avm1-types].
 
 - [Rust implementation](./rs/README.md)
 - [Typescript implementation](./ts/README.md)
@@ -42,4 +42,4 @@ You can also use the library and report any issues you encounter on the Github
 issues page.
 
 [ofl]: https://github.com/open-flash/open-flash
-[avm1-tree]: https://github.com/open-flash/avm1-tree
+[avm1-types]: https://github.com/open-flash/avm1-types
