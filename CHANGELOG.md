@@ -1,3 +1,7 @@
+# Next
+
+- **[Fix]** Add support for fall-through over empty blocks (especially over empty but defined `finally`).
+
 # 0.9.0 (2019-09-27)
 
 - **[Breaking change]** Update to `avm1-types@0.9` (former `avm1-tree`).

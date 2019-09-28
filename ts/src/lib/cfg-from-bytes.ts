@@ -212,9 +212,6 @@ function resolveLabels(
   }
 
   const offsetToLabel: Map<UintSize, NullableCfgLabel> = new Map();
-  if (soft.actions.has(soft.start)) {
-    offsetToLabel.set(soft.start, toLabel(soft.start));
-  }
   for (const offset of soft.actions.keys()) {
     if (soft.jumpTargets.has(offset) || soft.simpleTargets.get(offset) !== 1) {
       offsetToLabel.set(offset, toLabel(offset));
@@ -243,6 +240,7 @@ function resolveLabels(
       offsetToLabel.set(outJump, parentLabel);
     }
   }
+  offsetToLabel.set(soft.start, toLabel(soft.start));
   const sortedResult: Map<UintSize, string | null> = new Map();
   const sortedOffsets: UintSize[] = [...offsetToLabel.keys()];
   sortedOffsets.sort((a, b) => a - b);
@@ -438,9 +436,13 @@ function buildCfg(
     if (defaultNext === undefined) {
       throw new Error("AssertionError: Empty CFG without known `defaultNext`");
     }
+    const label: NullableCfgLabel | undefined = labels.get(soft.start);
+    if (label === null || label === undefined) {
+      throw new Error("AssertionError: Expected empty block start label to have an id`");
+    }
     const head: CfgSimpleBlock = {
       type: CfgBlockType.Simple,
-      label: `l${soft.id}`,
+      label,
       actions: [],
       next: defaultNext,
     };
