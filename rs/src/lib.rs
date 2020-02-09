@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate nom;
-
 pub use self::avm1::parse_action;
 
 mod avm1;
@@ -11,11 +8,11 @@ mod parser_tests {
   use ::std::io::Read;
 
   use ::avm1_types::Action;
-  use ::test_generator::test_expand_paths;
+  use ::test_generator::test_resources;
 
   use super::*;
 
-  test_expand_paths! { test_parse_action; "../tests/actions/*.avm1" }
+  #[test_resources("../tests/actions/*.avm1")]
   fn test_parse_action(path: &str) {
     let json_path: String = path.replace(".avm1", ".json");
     let mut input_file = ::std::fs::File::open(path).unwrap();
