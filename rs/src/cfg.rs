@@ -1,18 +1,13 @@
 use crate::avm1::parse_action_header;
 use crate::parse_action;
-use avm1_types::actions as raw_actions;
-use avm1_types::actions::r#try::CatchTarget;
-use avm1_types::cfg_actions::{CfgDefineFunction, CfgDefineFunction2};
-use avm1_types::cfg_blocks::{
-  CfgErrorBlock, CfgIfBlock, CfgReturnBlock, CfgSimpleBlock, CfgThrowBlock, CfgTryBlock, CfgWaitForFrame2Block,
-  CfgWaitForFrameBlock, CfgWithBlock,
-};
-use avm1_types::Action as RawAction;
-use avm1_types::{Cfg, CfgAction as SimpleAction, CfgBlock, CfgLabel};
+use avm1_types::cfg;
+use avm1_types::cfg::{Cfg, CfgBlock, CfgFlow, CfgLabel};
+use avm1_types::raw;
 use core::convert::TryFrom;
 use core::iter::Iterator;
 use core::ops::Range;
 use nom::lib::std::collections::{BTreeMap, HashMap};
+use vec1::Vec1;
 
 type Avm1Index = usize;
 type Avm1Range = Range<usize>;
@@ -63,14 +58,14 @@ impl<'a> Avm1Parser<'a> {
     Avm1Parser { bytes }
   }
 
-  fn get(&self, offset: usize) -> (usize, RawAction) {
+  fn get(&self, offset: usize) -> (usize, raw::Action) {
     if offset >= self.bytes.len() {
-      return (offset, RawAction::End);
+      return (offset, raw::Action::End);
     }
     let input: &[u8] = &self.bytes[offset..];
     match parse_action(input) {
       Ok((next_input, action)) => (offset + (input.len() - next_input.len()), action),
-      Err(_) => (offset, RawAction::Error(raw_actions::Error { error: None })),
+      Err(_) => (offset, raw::Action::Error(raw::Error { error: None })),
     }
   }
 
@@ -221,125 +216,120 @@ impl<'a> ParseContext<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum CfgFlow {
-  Simple(usize, SimpleAction),
-  If(Option<CfgLabel>, Option<CfgLabel>),
-  Jump(Option<CfgLabel>),
-  Error,
-  Throw,
-  Return,
-  With(Cfg),
-  Try(Cfg, CatchTarget, Option<Cfg>, Option<Cfg>),
-  WaitForFrame(u16, Option<CfgLabel>, Option<CfgLabel>),
-  WaitForFrame2(Option<CfgLabel>, Option<CfgLabel>),
+enum Parsed {
+  Action(usize, cfg::Action),
+  Flow(CfgFlow),
 }
 
 fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
-  let mut parsed: HashMap<usize, CfgFlow> = HashMap::new();
+  let mut parsed: HashMap<usize, Parsed> = HashMap::new();
 
   while let Some(cur_offset) = traversal.pop_action() {
     if !traversal.top_layer().range.contains(&cur_offset) {
-      parsed.insert(cur_offset, CfgFlow::Jump(traversal.jump(cur_offset)));
+      let jump = cfg::Simple {
+        next: traversal.jump(cur_offset),
+      };
+      parsed.insert(cur_offset, Parsed::Flow(CfgFlow::Simple(jump)));
       continue;
     }
 
     let (end_offset, raw) = parser.get(cur_offset);
 
-    let action: CfgFlow = match raw {
-      RawAction::Add => {
+    let cur_parsed: Parsed = match raw {
+      raw::Action::Add => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Add)
+        Parsed::Action(end_offset, cfg::Action::Add)
       }
-      RawAction::Add2 => {
+      raw::Action::Add2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Add2)
+        Parsed::Action(end_offset, cfg::Action::Add2)
       }
-      RawAction::And => {
+      raw::Action::And => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::And)
+        Parsed::Action(end_offset, cfg::Action::And)
       }
-      RawAction::AsciiToChar => {
+      raw::Action::AsciiToChar => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::AsciiToChar)
+        Parsed::Action(end_offset, cfg::Action::AsciiToChar)
       }
-      RawAction::BitAnd => {
+      raw::Action::BitAnd => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::BitAnd)
+        Parsed::Action(end_offset, cfg::Action::BitAnd)
       }
-      RawAction::BitOr => {
+      raw::Action::BitOr => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::BitOr)
+        Parsed::Action(end_offset, cfg::Action::BitOr)
       }
-      RawAction::BitLShift => {
+      raw::Action::BitLShift => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::BitLShift)
+        Parsed::Action(end_offset, cfg::Action::BitLShift)
       }
-      RawAction::BitRShift => {
+      raw::Action::BitRShift => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::BitRShift)
+        Parsed::Action(end_offset, cfg::Action::BitRShift)
       }
-      RawAction::BitURShift => {
+      raw::Action::BitURShift => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::BitURShift)
+        Parsed::Action(end_offset, cfg::Action::BitURShift)
       }
-      RawAction::BitXor => {
+      raw::Action::BitXor => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::BitXor)
+        Parsed::Action(end_offset, cfg::Action::BitXor)
       }
-      RawAction::Call => {
+      raw::Action::Call => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Call)
+        Parsed::Action(end_offset, cfg::Action::Call)
       }
-      RawAction::CallFunction => {
+      raw::Action::CallFunction => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::CallFunction)
+        Parsed::Action(end_offset, cfg::Action::CallFunction)
       }
-      RawAction::CallMethod => {
+      raw::Action::CallMethod => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::CallMethod)
+        Parsed::Action(end_offset, cfg::Action::CallMethod)
       }
-      RawAction::CharToAscii => {
+      raw::Action::CharToAscii => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::CharToAscii)
+        Parsed::Action(end_offset, cfg::Action::CharToAscii)
       }
-      RawAction::CastOp => {
+      raw::Action::CastOp => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::CastOp)
+        Parsed::Action(end_offset, cfg::Action::CastOp)
       }
-      RawAction::CloneSprite => {
+      raw::Action::CloneSprite => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::CloneSprite)
+        Parsed::Action(end_offset, cfg::Action::CloneSprite)
       }
-      RawAction::ConstantPool(action) => {
+      raw::Action::ConstantPool(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::ConstantPool(action))
+        Parsed::Action(end_offset, cfg::Action::ConstantPool(action))
       }
-      RawAction::Decrement => {
+      raw::Action::Decrement => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Decrement)
+        Parsed::Action(end_offset, cfg::Action::Decrement)
       }
-      RawAction::DefineFunction(action) => {
+      raw::Action::DefineFunction(action) => {
         let fn_range: Avm1Range = end_offset..(end_offset + usize::from(action.body_size));
         let mut fn_child_traversal = ParseContext::new(traversal.idg, fn_range.clone());
         let cfg: Cfg = parse_into_cfg(parser, &mut fn_child_traversal);
         traversal.linear(fn_range.end);
-        CfgFlow::Simple(
+        Parsed::Action(
           fn_range.end,
-          SimpleAction::DefineFunction(CfgDefineFunction {
+          cfg::Action::DefineFunction(cfg::DefineFunction {
             name: action.name,
             parameters: action.parameters,
             body: cfg,
           }),
         )
       }
-      RawAction::DefineFunction2(action) => {
+      raw::Action::DefineFunction2(action) => {
         let fn_range: Avm1Range = end_offset..(end_offset + usize::from(action.body_size));
         let mut fn_child_traversal = ParseContext::new(traversal.idg, fn_range.clone());
         let cfg: Cfg = parse_into_cfg(parser, &mut fn_child_traversal);
         traversal.linear(fn_range.end);
-        CfgFlow::Simple(
+        Parsed::Action(
           fn_range.end,
-          SimpleAction::DefineFunction2(CfgDefineFunction2 {
+          cfg::Action::DefineFunction2(cfg::DefineFunction2 {
             name: action.name,
             register_count: action.register_count,
             preload_this: action.preload_this,
@@ -356,389 +346,414 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
           }),
         )
       }
-      RawAction::DefineLocal => {
+      raw::Action::DefineLocal => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::DefineLocal)
+        Parsed::Action(end_offset, cfg::Action::DefineLocal)
       }
-      RawAction::DefineLocal2 => {
+      raw::Action::DefineLocal2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::DefineLocal2)
+        Parsed::Action(end_offset, cfg::Action::DefineLocal2)
       }
-      RawAction::Delete => {
+      raw::Action::Delete => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Delete)
+        Parsed::Action(end_offset, cfg::Action::Delete)
       }
-      RawAction::Delete2 => {
+      raw::Action::Delete2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Delete2)
+        Parsed::Action(end_offset, cfg::Action::Delete2)
       }
-      RawAction::Divide => {
+      raw::Action::Divide => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Divide)
+        Parsed::Action(end_offset, cfg::Action::Divide)
       }
-      RawAction::End => CfgFlow::Jump(None),
-      RawAction::EndDrag => {
+      raw::Action::End => Parsed::Flow(CfgFlow::Simple(cfg::Simple { next: None })),
+      raw::Action::EndDrag => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::EndDrag)
+        Parsed::Action(end_offset, cfg::Action::EndDrag)
       }
-      RawAction::Enumerate => {
+      raw::Action::Enumerate => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Enumerate)
+        Parsed::Action(end_offset, cfg::Action::Enumerate)
       }
-      RawAction::Enumerate2 => {
+      raw::Action::Enumerate2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Enumerate2)
+        Parsed::Action(end_offset, cfg::Action::Enumerate2)
       }
-      RawAction::Equals => {
+      raw::Action::Equals => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Equals)
+        Parsed::Action(end_offset, cfg::Action::Equals)
       }
-      RawAction::Equals2 => {
+      raw::Action::Equals2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Equals2)
+        Parsed::Action(end_offset, cfg::Action::Equals2)
       }
-      RawAction::Error(_) => CfgFlow::Error,
-      RawAction::Extends => {
+      raw::Action::Error(action) => Parsed::Flow(CfgFlow::Error(cfg::Error { error: action.error })),
+      raw::Action::Extends => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Extends)
+        Parsed::Action(end_offset, cfg::Action::Extends)
       }
-      RawAction::FsCommand2 => {
+      raw::Action::FsCommand2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::FsCommand2)
+        Parsed::Action(end_offset, cfg::Action::FsCommand2)
       }
-      RawAction::GetMember => {
+      raw::Action::GetMember => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GetMember)
+        Parsed::Action(end_offset, cfg::Action::GetMember)
       }
-      RawAction::GetProperty => {
+      raw::Action::GetProperty => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GetProperty)
+        Parsed::Action(end_offset, cfg::Action::GetProperty)
       }
-      RawAction::GetTime => {
+      raw::Action::GetTime => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GetTime)
+        Parsed::Action(end_offset, cfg::Action::GetTime)
       }
-      RawAction::GetUrl(action) => {
+      raw::Action::GetUrl(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GetUrl(action))
+        Parsed::Action(end_offset, cfg::Action::GetUrl(action))
       }
-      RawAction::GetUrl2(action) => {
+      raw::Action::GetUrl2(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GetUrl2(action))
+        Parsed::Action(end_offset, cfg::Action::GetUrl2(action))
       }
-      RawAction::GetVariable => {
+      raw::Action::GetVariable => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GetVariable)
+        Parsed::Action(end_offset, cfg::Action::GetVariable)
       }
-      RawAction::GotoFrame(action) => {
+      raw::Action::GotoFrame(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GotoFrame(action))
+        Parsed::Action(end_offset, cfg::Action::GotoFrame(action))
       }
-      RawAction::GotoFrame2(action) => {
+      raw::Action::GotoFrame2(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GotoFrame2(action))
+        Parsed::Action(end_offset, cfg::Action::GotoFrame2(action))
       }
-      RawAction::GotoLabel(action) => {
+      raw::Action::GotoLabel(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::GotoLabel(action))
+        Parsed::Action(end_offset, cfg::Action::GotoLabel(action))
       }
-      RawAction::Greater => {
+      raw::Action::Greater => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Greater)
+        Parsed::Action(end_offset, cfg::Action::Greater)
       }
-      RawAction::If(action) => {
-        let branch_true = if let Some(jump_offset) = try_add_offset(end_offset, action.offset) {
+      raw::Action::If(action) => {
+        let true_target = if let Some(jump_offset) = try_add_offset(end_offset, action.offset) {
           traversal.jump(jump_offset)
         } else {
           None
         };
-        let branch_false = traversal.jump(end_offset);
-        CfgFlow::If(branch_true, branch_false)
+        let false_target = traversal.jump(end_offset);
+        Parsed::Flow(CfgFlow::If(cfg::If {
+          true_target,
+          false_target,
+        }))
       }
-      RawAction::ImplementsOp => {
+      raw::Action::ImplementsOp => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::ImplementsOp)
+        Parsed::Action(end_offset, cfg::Action::ImplementsOp)
       }
-      RawAction::Increment => {
+      raw::Action::Increment => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Increment)
+        Parsed::Action(end_offset, cfg::Action::Increment)
       }
-      RawAction::InitArray => {
+      raw::Action::InitArray => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::InitArray)
+        Parsed::Action(end_offset, cfg::Action::InitArray)
       }
-      RawAction::InitObject => {
+      raw::Action::InitObject => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::InitObject)
+        Parsed::Action(end_offset, cfg::Action::InitObject)
       }
-      RawAction::InstanceOf => {
+      raw::Action::InstanceOf => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::InstanceOf)
+        Parsed::Action(end_offset, cfg::Action::InstanceOf)
       }
-      RawAction::Jump(action) => {
-        let target = if let Some(jump_offset) = try_add_offset(end_offset, action.offset) {
+      raw::Action::Jump(action) => {
+        let next = if let Some(jump_offset) = try_add_offset(end_offset, action.offset) {
           traversal.jump(jump_offset)
         } else {
           None
         };
-        CfgFlow::Jump(target)
+        Parsed::Flow(CfgFlow::Simple(cfg::Simple { next }))
       }
-      RawAction::Less => {
+      raw::Action::Less => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Less)
+        Parsed::Action(end_offset, cfg::Action::Less)
       }
-      RawAction::Less2 => {
+      raw::Action::Less2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Less2)
+        Parsed::Action(end_offset, cfg::Action::Less2)
       }
-      RawAction::MbAsciiToChar => {
+      raw::Action::MbAsciiToChar => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::MbAsciiToChar)
+        Parsed::Action(end_offset, cfg::Action::MbAsciiToChar)
       }
-      RawAction::MbCharToAscii => {
+      raw::Action::MbCharToAscii => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::MbCharToAscii)
+        Parsed::Action(end_offset, cfg::Action::MbCharToAscii)
       }
-      RawAction::MbStringExtract => {
+      raw::Action::MbStringExtract => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::MbStringExtract)
+        Parsed::Action(end_offset, cfg::Action::MbStringExtract)
       }
-      RawAction::MbStringLength => {
+      raw::Action::MbStringLength => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::MbStringLength)
+        Parsed::Action(end_offset, cfg::Action::MbStringLength)
       }
-      RawAction::Modulo => {
+      raw::Action::Modulo => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Modulo)
+        Parsed::Action(end_offset, cfg::Action::Modulo)
       }
-      RawAction::Multiply => {
+      raw::Action::Multiply => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Multiply)
+        Parsed::Action(end_offset, cfg::Action::Multiply)
       }
-      RawAction::NewMethod => {
+      raw::Action::NewMethod => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::NewMethod)
+        Parsed::Action(end_offset, cfg::Action::NewMethod)
       }
-      RawAction::NewObject => {
+      raw::Action::NewObject => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::NewObject)
+        Parsed::Action(end_offset, cfg::Action::NewObject)
       }
-      RawAction::NextFrame => {
+      raw::Action::NextFrame => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::NextFrame)
+        Parsed::Action(end_offset, cfg::Action::NextFrame)
       }
-      RawAction::Not => {
+      raw::Action::Not => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Not)
+        Parsed::Action(end_offset, cfg::Action::Not)
       }
-      RawAction::Or => {
+      raw::Action::Or => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Or)
+        Parsed::Action(end_offset, cfg::Action::Or)
       }
-      RawAction::Play => {
+      raw::Action::Play => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Play)
+        Parsed::Action(end_offset, cfg::Action::Play)
       }
-      RawAction::Pop => {
+      raw::Action::Pop => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Pop)
+        Parsed::Action(end_offset, cfg::Action::Pop)
       }
-      RawAction::PrevFrame => {
+      raw::Action::PrevFrame => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::PrevFrame)
+        Parsed::Action(end_offset, cfg::Action::PrevFrame)
       }
-      RawAction::Push(action) => {
+      raw::Action::Push(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Push(action))
+        Parsed::Action(end_offset, cfg::Action::Push(action))
       }
-      RawAction::PushDuplicate => {
+      raw::Action::PushDuplicate => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::PushDuplicate)
+        Parsed::Action(end_offset, cfg::Action::PushDuplicate)
       }
-      RawAction::RandomNumber => {
+      raw::Action::RandomNumber => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::RandomNumber)
+        Parsed::Action(end_offset, cfg::Action::RandomNumber)
       }
-      RawAction::RemoveSprite => {
+      raw::Action::RemoveSprite => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::RemoveSprite)
+        Parsed::Action(end_offset, cfg::Action::RemoveSprite)
       }
-      RawAction::Return => CfgFlow::Return,
-      RawAction::SetMember => {
+      raw::Action::Return => Parsed::Flow(CfgFlow::Return),
+      raw::Action::SetMember => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::SetMember)
+        Parsed::Action(end_offset, cfg::Action::SetMember)
       }
-      RawAction::SetProperty => {
+      raw::Action::SetProperty => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::SetProperty)
+        Parsed::Action(end_offset, cfg::Action::SetProperty)
       }
-      RawAction::SetTarget(action) => {
+      raw::Action::SetTarget(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::SetTarget(action))
+        Parsed::Action(end_offset, cfg::Action::SetTarget(action))
       }
-      RawAction::SetTarget2 => {
+      raw::Action::SetTarget2 => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::SetTarget2)
+        Parsed::Action(end_offset, cfg::Action::SetTarget2)
       }
-      RawAction::SetVariable => {
+      raw::Action::SetVariable => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::SetVariable)
+        Parsed::Action(end_offset, cfg::Action::SetVariable)
       }
-      RawAction::StackSwap => {
+      raw::Action::StackSwap => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StackSwap)
+        Parsed::Action(end_offset, cfg::Action::StackSwap)
       }
-      RawAction::StartDrag => {
+      raw::Action::StartDrag => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StartDrag)
+        Parsed::Action(end_offset, cfg::Action::StartDrag)
       }
-      RawAction::Stop => {
+      raw::Action::Stop => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Stop)
+        Parsed::Action(end_offset, cfg::Action::Stop)
       }
-      RawAction::StopSounds => {
+      raw::Action::StopSounds => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StopSounds)
+        Parsed::Action(end_offset, cfg::Action::StopSounds)
       }
-      RawAction::StoreRegister(action) => {
+      raw::Action::StoreRegister(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StoreRegister(action))
+        Parsed::Action(end_offset, cfg::Action::StoreRegister(action))
       }
-      RawAction::StrictEquals => {
+      raw::Action::StrictEquals => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StrictEquals)
+        Parsed::Action(end_offset, cfg::Action::StrictEquals)
       }
-      // RawAction::StrictMode(action) => { traversal.linear(end_offset); CfgFlow::Simple(end_offset, SimpleAction::StrictMode(action)) },
-      RawAction::StringAdd => {
+      raw::Action::StrictMode(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StringAdd)
+        Parsed::Action(end_offset, cfg::Action::StrictMode(action))
       }
-      RawAction::StringEquals => {
+      raw::Action::StringAdd => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StringEquals)
+        Parsed::Action(end_offset, cfg::Action::StringAdd)
       }
-      RawAction::StringExtract => {
+      raw::Action::StringEquals => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StringExtract)
+        Parsed::Action(end_offset, cfg::Action::StringEquals)
       }
-      RawAction::StringGreater => {
+      raw::Action::StringExtract => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StringGreater)
+        Parsed::Action(end_offset, cfg::Action::StringExtract)
       }
-      RawAction::StringLength => {
+      raw::Action::StringGreater => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StringLength)
+        Parsed::Action(end_offset, cfg::Action::StringGreater)
       }
-      RawAction::StringLess => {
+      raw::Action::StringLength => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::StringLess)
+        Parsed::Action(end_offset, cfg::Action::StringLength)
       }
-      RawAction::Subtract => {
+      raw::Action::StringLess => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Subtract)
+        Parsed::Action(end_offset, cfg::Action::StringLess)
       }
-      RawAction::TargetPath => {
+      raw::Action::Subtract => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::TargetPath)
+        Parsed::Action(end_offset, cfg::Action::Subtract)
       }
-      RawAction::Throw => CfgFlow::Throw,
-      RawAction::ToInteger => {
+      raw::Action::TargetPath => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::ToInteger)
+        Parsed::Action(end_offset, cfg::Action::TargetPath)
       }
-      RawAction::ToNumber => {
+      raw::Action::Throw => Parsed::Flow(CfgFlow::Throw),
+      raw::Action::ToInteger => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::ToNumber)
+        Parsed::Action(end_offset, cfg::Action::ToInteger)
       }
-      RawAction::ToString => {
+      raw::Action::ToNumber => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::ToString)
+        Parsed::Action(end_offset, cfg::Action::ToNumber)
       }
-      RawAction::ToggleQuality => {
+      raw::Action::ToString => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::ToggleQuality)
+        Parsed::Action(end_offset, cfg::Action::ToString)
       }
-      RawAction::Trace => {
+      raw::Action::ToggleQuality => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Trace)
+        Parsed::Action(end_offset, cfg::Action::ToggleQuality)
       }
-      RawAction::Try(action) => {
-        let try_range: Avm1Range = end_offset..(end_offset + usize::from(action.try_size));
-        let mut next_offset = try_range.end;
-        let catch_range: Option<Avm1Range> = if let Some(catch_size) = action.catch_size {
-          let catch_range = next_offset..(next_offset + usize::from(catch_size));
-          next_offset = catch_range.end;
-          Some(catch_range)
-        } else {
-          None
-        };
-        let finally_range: Option<Avm1Range> = if let Some(finally_size) = action.finally_size {
-          let finally_range = next_offset..(next_offset + usize::from(finally_size));
-          Some(finally_range)
-        } else {
-          None
-        };
+      raw::Action::Trace => {
+        traversal.linear(end_offset);
+        Parsed::Action(end_offset, cfg::Action::Trace)
+      }
+      raw::Action::Try(action) => {
+        let try_start: Avm1Index = end_offset;
+        let catch_start: Avm1Index = try_start + usize::from(action.r#try);
+        let finally_start: Avm1Index = catch_start + action.catch.as_ref().map_or(0, |c| usize::from(c.size));
 
-        let finally_body: Option<Cfg> = if let Some(finally_range) = &finally_range {
-          traversal.push_layer(finally_range.clone());
+        //        let try_range: Avm1Range = end_offset..(end_offset + usize::from(action.try_size));
+        //        let mut next_offset = try_range.end;
+        //        let catch_range: Option<Avm1Range> = if let Some(catch_size) = action.catch_size {
+        //          let catch_range = next_offset..(next_offset + usize::from(catch_size));
+        //          next_offset = catch_range.end;
+        //          Some(catch_range)
+        //        } else {
+        //          None
+        //        };
+        //        let finally_range: Option<Avm1Range> = if let Some(finally_size) = action.finally_size {
+        //          let finally_range = next_offset..(next_offset + usize::from(finally_size));
+        //          Some(finally_range)
+        //        } else {
+        //          None
+        //        };
+
+        let finally: Option<Cfg> = if let Some(finally_size) = action.finally {
+          traversal.push_layer(finally_start..(finally_start + usize::from(finally_size)));
           Some(parse_into_cfg(parser, traversal))
         } else {
           None
         };
 
-        traversal.push_layer(try_range.clone());
-        let try_body: Cfg = parse_into_cfg(parser, traversal);
-        traversal.pop_layer();
-
-        let catch_body = catch_range.map(|catch_range| {
-          traversal.push_layer(catch_range.clone());
-          let catch_body: Cfg = parse_into_cfg(parser, traversal);
+        let r#try = {
+          traversal.push_layer(try_start..(try_start + usize::from(action.r#try)));
+          let r#try: Cfg = parse_into_cfg(parser, traversal);
           traversal.pop_layer();
-          catch_body
+          r#try
+        };
+
+        let catch = action.catch.map(|raw_catch| {
+          traversal.push_layer(catch_start..(catch_start + usize::from(raw_catch.size)));
+          let body: Cfg = parse_into_cfg(parser, traversal);
+          traversal.pop_layer();
+          cfg::CatchBlock {
+            target: raw_catch.target,
+            body,
+          }
         });
 
-        if finally_range.is_some() {
+        if finally.is_some() {
           traversal.pop_layer();
         }
 
-        CfgFlow::Try(try_body, action.catch_target, catch_body, finally_body)
+        Parsed::Flow(CfgFlow::Try(cfg::Try { r#try, catch, finally }))
       }
-      RawAction::TypeOf => {
+      raw::Action::TypeOf => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::TypeOf)
+        Parsed::Action(end_offset, cfg::Action::TypeOf)
       }
-      RawAction::Unknown(action) => {
+      raw::Action::Raw(action) => {
         traversal.linear(end_offset);
-        CfgFlow::Simple(end_offset, SimpleAction::Unknown(action))
+        Parsed::Action(end_offset, cfg::Action::Raw(action))
       }
-      RawAction::WaitForFrame(action) => {
-        let not_loaded_offset = parser.skip(end_offset, action.skip_count);
-        let not_loaded_target = traversal.jump(not_loaded_offset);
-        let loaded_target = traversal.jump(end_offset);
-        CfgFlow::WaitForFrame(u16::try_from(action.frame).unwrap(), not_loaded_target, loaded_target)
+      raw::Action::WaitForFrame(action) => {
+        let loading_offset = parser.skip(end_offset, action.skip);
+        let loading_target = traversal.jump(loading_offset);
+        let ready_target = traversal.jump(end_offset);
+        let wff = cfg::WaitForFrame {
+          frame: action.frame,
+          loading_target,
+          ready_target,
+        };
+        Parsed::Flow(CfgFlow::WaitForFrame(wff))
       }
-      RawAction::WaitForFrame2(action) => {
-        let not_loaded_offset = parser.skip(end_offset, action.skip_count);
-        let not_loaded_target = traversal.jump(not_loaded_offset);
-        let loaded_target = traversal.jump(end_offset);
-        CfgFlow::WaitForFrame2(not_loaded_target, loaded_target)
+      raw::Action::WaitForFrame2(action) => {
+        let loading_offset = parser.skip(end_offset, action.skip);
+        let loading_target = traversal.jump(loading_offset);
+        let ready_target = traversal.jump(end_offset);
+        let wff = cfg::WaitForFrame2 {
+          loading_target,
+          ready_target,
+        };
+        Parsed::Flow(CfgFlow::WaitForFrame2(wff))
       }
-      RawAction::With(action) => {
-        let range: Avm1Range = end_offset..(end_offset + usize::from(action.with_size));
-        traversal.push_layer(range.clone());
-        let cfg: Cfg = parse_into_cfg(parser, traversal);
+      raw::Action::With(action) => {
+        let range: Avm1Range = end_offset..(end_offset + usize::from(action.size));
+        traversal.push_layer(range);
+        let body: Cfg = parse_into_cfg(parser, traversal);
         traversal.pop_layer();
-        CfgFlow::With(cfg)
+        Parsed::Flow(CfgFlow::With(cfg::With { body }))
       }
     };
 
     {
-      let old: Option<CfgFlow> = parsed.insert(cur_offset, action);
+      let old: Option<Parsed> = parsed.insert(cur_offset, cur_parsed);
       debug_assert!(old.is_none());
     }
   }
-  let mut head: Option<CfgBlock> = None;
-  let mut tail: Vec<CfgBlock> = Vec::new();
+
+  let mut blocks: Vec<CfgBlock> = Vec::new();
 
   for start_index in traversal.iter_labels() {
     let label: CfgLabel = CfgLabel(format!("l{}_{}", traversal.top_layer().id, start_index));
@@ -749,42 +764,29 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         .remove(&index)
         .expect("`parsed` to have actions found during traversal");
       match action {
-        CfgFlow::Simple(next, simple) => {
-          builder.action(simple);
+        Parsed::Action(next, action) => {
+          builder.action(action);
           index = next
         }
-        CfgFlow::Jump(target) => break builder.simple(target),
-        CfgFlow::If(true_label, false_label) => break builder.cond(true_label, false_label),
-        CfgFlow::Return => break builder.r#return(),
-        CfgFlow::Throw => break builder.throw(),
-        CfgFlow::With(body) => break builder.with(body),
-        CfgFlow::Try(r#try, catch_target, catch, finally) => break builder.r#try(r#try, catch_target, catch, finally),
-        CfgFlow::Error => break builder.error(),
-        CfgFlow::WaitForFrame(frame, loading_label, ready_label) => {
-          break builder.wff(frame, loading_label, ready_label)
-        }
-        CfgFlow::WaitForFrame2(loading_label, ready_label) => break builder.wff2(loading_label, ready_label),
+        Parsed::Flow(flow) => break builder.flow(flow),
       };
       if traversal.top_layer().actions.get(&index) == Some(&Reachability::Jump) {
-        break builder.simple(traversal.get_target_label(index));
+        let jump = cfg::Simple {
+          next: traversal.get_target_label(index),
+        };
+        break builder.flow(CfgFlow::Simple(jump));
       }
     };
-    if head.is_none() {
-      head = Some(block);
-    } else {
-      tail.push(block);
-    }
+    blocks.push(block);
   }
-  let cfg: Cfg = Cfg {
-    head: Box::new(head.expect("Expected head to be defined")),
-    tail,
-  };
-  cfg
+
+  let blocks: Vec1<CfgBlock> = Vec1::try_from_vec(blocks).unwrap();
+  Cfg { blocks }
 }
 
 struct CfgBlockBuilder {
   label: CfgLabel,
-  actions: Vec<SimpleAction>,
+  actions: Vec<cfg::Action>,
 }
 
 impl CfgBlockBuilder {
@@ -795,85 +797,16 @@ impl CfgBlockBuilder {
     }
   }
 
-  fn action(&mut self, action: SimpleAction) -> &mut Self {
+  fn action(&mut self, action: cfg::Action) -> &mut Self {
     self.actions.push(action);
     self
   }
 
-  fn simple(self, next: Option<CfgLabel>) -> CfgBlock {
-    CfgBlock::Simple(CfgSimpleBlock {
+  fn flow(self, flow: CfgFlow) -> CfgBlock {
+    CfgBlock {
       label: self.label,
       actions: self.actions,
-      next,
-    })
-  }
-
-  fn cond(self, if_true: Option<CfgLabel>, if_false: Option<CfgLabel>) -> CfgBlock {
-    CfgBlock::If(CfgIfBlock {
-      label: self.label,
-      actions: self.actions,
-      if_true,
-      if_false,
-    })
-  }
-
-  fn r#return(self) -> CfgBlock {
-    CfgBlock::Return(CfgReturnBlock {
-      label: self.label,
-      actions: self.actions,
-    })
-  }
-
-  fn throw(self) -> CfgBlock {
-    CfgBlock::Throw(CfgThrowBlock {
-      label: self.label,
-      actions: self.actions,
-    })
-  }
-
-  fn error(self) -> CfgBlock {
-    CfgBlock::Error(CfgErrorBlock {
-      label: self.label,
-      actions: self.actions,
-      error: None,
-    })
-  }
-
-  fn with(self, body: Cfg) -> CfgBlock {
-    CfgBlock::With(CfgWithBlock {
-      label: self.label,
-      actions: self.actions,
-      with: body,
-    })
-  }
-
-  fn wff(self, frame: u16, if_not_loaded: Option<CfgLabel>, if_loaded: Option<CfgLabel>) -> CfgBlock {
-    CfgBlock::WaitForFrame(CfgWaitForFrameBlock {
-      label: self.label,
-      actions: self.actions,
-      frame,
-      if_not_loaded,
-      if_loaded,
-    })
-  }
-
-  fn wff2(self, if_not_loaded: Option<CfgLabel>, if_loaded: Option<CfgLabel>) -> CfgBlock {
-    CfgBlock::WaitForFrame2(CfgWaitForFrame2Block {
-      label: self.label,
-      actions: self.actions,
-      if_not_loaded,
-      if_loaded,
-    })
-  }
-
-  fn r#try(self, r#try: Cfg, catch_target: CatchTarget, catch: Option<Cfg>, finally: Option<Cfg>) -> CfgBlock {
-    CfgBlock::Try(CfgTryBlock {
-      label: self.label,
-      actions: self.actions,
-      r#try,
-      catch_target,
-      catch,
-      finally,
-    })
+      flow,
+    }
   }
 }

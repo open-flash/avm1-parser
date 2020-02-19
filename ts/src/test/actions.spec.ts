@@ -1,4 +1,4 @@
-import { $Action, Action } from "avm1-types/action";
+import { $Action, Action } from "avm1-types/raw/action";
 import chai from "chai";
 import fs from "fs";
 import { JsonReader } from "kryo/readers/json";

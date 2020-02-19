@@ -1,12 +1,12 @@
-import { Action as RawAction } from "avm1-types/action";
 import { ActionType } from "avm1-types/action-type";
-import { Try } from "avm1-types/actions/try";
-import { Cfg } from "avm1-types/cfg";
-import { CfgAction } from "avm1-types/cfg-action";
-import { CfgBlock } from "avm1-types/cfg-block";
-import { CfgBlockType } from "avm1-types/cfg-block-type";
-import { CfgSimpleBlock } from "avm1-types/cfg-blocks/cfg-simple-block";
-import { CfgLabel, NullableCfgLabel } from "avm1-types/cfg-label";
+import { Action as CfgAction } from "avm1-types/cfg/action";
+import { CatchBlock } from "avm1-types/cfg/catch-block";
+import { Cfg } from "avm1-types/cfg/cfg";
+import { CfgBlock } from "avm1-types/cfg/cfg-block";
+import { CfgFlowType } from "avm1-types/cfg/cfg-flow-type";
+import { CfgLabel, NullableCfgLabel } from "avm1-types/cfg/cfg-label";
+import { Action as RawAction } from "avm1-types/raw/action";
+import { Try } from "avm1-types/raw/actions/try";
 import { UintSize } from "semantic-types";
 import { Avm1Parser } from "./index";
 
@@ -113,19 +113,19 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
         break;
       case ActionType.Try: {
         const tryStart: UintSize = endOffset;
-        const catchStart: UintSize = tryStart + raw.trySize;
-        const finallyStart: UintSize = catchStart + (raw.catchSize !== undefined ? raw.catchSize : 0);
+        const catchStart: UintSize = tryStart + raw.try;
+        const finallyStart: UintSize = catchStart + (raw.catch !== undefined ? raw.catch.size : 0);
 
         let softFinally: SoftBlock | undefined;
-        if (raw.finallySize !== undefined) {
-          softFinally = parseSoftBlock(parser, finallyStart, finallyStart + raw.finallySize, idp);
+        if (raw.finally !== undefined) {
+          softFinally = parseSoftBlock(parser, finallyStart, finallyStart + raw.finally, idp);
         }
 
-        const softTry: SoftBlock = parseSoftBlock(parser, tryStart, tryStart + raw.trySize, idp);
+        const softTry: SoftBlock = parseSoftBlock(parser, tryStart, tryStart + raw.try, idp);
 
         let softCatch: SoftBlock | undefined;
-        if (raw.catchSize !== undefined) {
-          softCatch = parseSoftBlock(parser, catchStart, catchStart + raw.catchSize, idp);
+        if (raw.catch !== undefined) {
+          softCatch = parseSoftBlock(parser, catchStart, catchStart + raw.catch.size, idp);
         }
 
         for (const outJump of softTry.outJumps) {
@@ -153,7 +153,7 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
       }
       case ActionType.WaitForFrame:
       case ActionType.WaitForFrame2: {
-        const notLoadedOffset: UintSize = parser.skipFrom(endOffset, raw.skipCount);
+        const notLoadedOffset: UintSize = parser.skipFrom(endOffset, raw.skip);
         nextOffsets.add(notLoadedOffset);
         nextOffsets.add(endOffset);
         parsed.set(curOffset, {raw, endOffset, notLoadedOffset} as any);
@@ -163,7 +163,7 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
       }
       case ActionType.With: {
         const withStart: UintSize = endOffset;
-        const withEnd: UintSize = withStart + raw.withSize;
+        const withEnd: UintSize = withStart + raw.size;
         const inner: SoftBlock = parseSoftBlock(parser, withStart, withEnd, idp);
         for (const outJump of inner.outJumps) {
           nextOffsets.add(outJump);
@@ -274,7 +274,7 @@ function buildCfg(
     let offset: UintSize = labelOffset;
     do {
       if (soft.endOfActions.has(offset)) {
-        blocks.push({type: CfgBlockType.Simple, label, actions, next: null});
+        blocks.push({label, actions, flow: {type: CfgFlowType.Simple, next: null}});
         continue iterateLabels;
       }
       const parsedAction: ParsedAction | undefined = soft.actions.get(offset);
@@ -317,24 +317,24 @@ function buildCfg(
           break;
         }
         case ActionType.End: {
-          blocks.push({type: CfgBlockType.Simple, label, actions, next: null});
+          blocks.push({label, actions, flow: {type: CfgFlowType.Simple, next: null}});
           continue iterateLabels;
         }
         case ActionType.Error: {
           // TODO: Propagate error
-          blocks.push({type: CfgBlockType.Error, label, actions, error: undefined});
+          blocks.push({label, actions, flow: {type: CfgFlowType.Error, error: undefined}});
           continue iterateLabels;
         }
         case ActionType.If: {
-          const ifTrue: string | null | undefined = labels.get(parsedAction.endOffset + parsedAction.raw.offset);
-          if (ifTrue === undefined) {
+          const trueTarget: string | null | undefined = labels.get(parsedAction.endOffset + parsedAction.raw.offset);
+          if (trueTarget === undefined) {
             throw new Error("ExpectedIfTargetToHaveALabel");
           }
-          const ifFalse: string | null | undefined = labels.get(parsedAction.endOffset);
-          if (ifFalse === undefined) {
+          const falseTarget: string | null | undefined = labels.get(parsedAction.endOffset);
+          if (falseTarget === undefined) {
             throw new Error("ExpectedIfTargetToHaveALabel");
           }
-          blocks.push({type: CfgBlockType.If, label, actions, ifTrue, ifFalse});
+          blocks.push({label, actions, flow: {type: CfgFlowType.If, trueTarget, falseTarget}});
           continue iterateLabels;
         }
         case ActionType.Jump: {
@@ -342,15 +342,15 @@ function buildCfg(
           if (target === undefined) {
             throw new Error("ExpectedJumpTargetToHaveALabel");
           }
-          blocks.push({type: CfgBlockType.Simple, label, actions, next: target});
+          blocks.push({label, actions, flow: {type: CfgFlowType.Simple, next: target}});
           continue iterateLabels;
         }
         case ActionType.Return: {
-          blocks.push({type: CfgBlockType.Return, label, actions});
+          blocks.push({label, actions, flow: {type: CfgFlowType.Return}});
           continue iterateLabels;
         }
         case ActionType.Throw: {
-          blocks.push({type: CfgBlockType.Throw, label, actions});
+          blocks.push({label, actions, flow: {type: CfgFlowType.Throw}});
           continue iterateLabels;
         }
         case ActionType.Try: {
@@ -374,19 +374,27 @@ function buildCfg(
           const tryLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(trySoftBlock, tryCatchOuterLabels);
           const tryCfg: Cfg = buildCfg(parser, trySoftBlock, tryLabels, idp, tryCatchOuterLabels.get(trySoftBlock.end));
 
-          let catchCfg: Cfg | undefined;
+          let catchBlock: CatchBlock | undefined;
           if (catchSoftBlock !== undefined) {
             const catchLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(catchSoftBlock, tryCatchOuterLabels);
-            catchCfg = buildCfg(parser, catchSoftBlock, catchLabels, idp, tryCatchOuterLabels.get(catchSoftBlock.end));
+            const body: Cfg = buildCfg(
+              parser,
+              catchSoftBlock,
+              catchLabels,
+              idp,
+              tryCatchOuterLabels.get(catchSoftBlock.end),
+            );
+            catchBlock = {target: raw.catch!.target, body};
           }
           blocks.push({
-            type: CfgBlockType.Try,
             label,
             actions,
-            try: tryCfg,
-            catchTarget: raw.catchTarget,
-            catch: catchCfg,
-            finally: finallyCfg,
+            flow: {
+              type: CfgFlowType.Try,
+              try: tryCfg,
+              catch: catchBlock,
+              finally: finallyCfg,
+            },
           });
           continue iterateLabels;
         }
@@ -395,32 +403,32 @@ function buildCfg(
           // tslint:disable-next-line
           const withLabels: Map<UintSize, NullableCfgLabel> = resolveLabels(withSoft, labels);
           const withCfg: Cfg = buildCfg(parser, withSoft, withLabels, idp, labels.get(withSoft.end));
-          blocks.push({type: CfgBlockType.With, label, actions, with: withCfg});
+          blocks.push({label, actions, flow: {type: CfgFlowType.With, body: withCfg}});
           continue iterateLabels;
         }
         case ActionType.WaitForFrame: {
-          const ifLoaded: string | null | undefined = labels.get(parsedAction.endOffset);
-          if (ifLoaded === undefined) {
+          const readyTarget: string | null | undefined = labels.get(parsedAction.endOffset);
+          if (readyTarget === undefined) {
             throw new Error("ExpectedWaitForFrameIfLoadedToHaveALabel");
           }
-          const ifNotLoaded: string | null | undefined = labels.get((parsedAction as any).notLoadedOffset);
-          if (ifNotLoaded === undefined) {
+          const loadingTarget: string | null | undefined = labels.get((parsedAction as any).notLoadedOffset);
+          if (loadingTarget === undefined) {
             throw new Error("ExpectedWaitForFrameIfNotLoadedToHaveALabel");
           }
           const frame: UintSize = parsedAction.raw.frame;
-          blocks.push({type: CfgBlockType.WaitForFrame, label, actions, frame, ifLoaded, ifNotLoaded});
+          blocks.push({label, actions, flow: {type: CfgFlowType.WaitForFrame, frame, readyTarget, loadingTarget}});
           continue iterateLabels;
         }
         case ActionType.WaitForFrame2: {
-          const ifLoaded: string | null | undefined = labels.get(parsedAction.endOffset);
-          if (ifLoaded === undefined) {
+          const readyTarget: string | null | undefined = labels.get(parsedAction.endOffset);
+          if (readyTarget === undefined) {
             throw new Error("ExpectedWaitForFrame2IfLoadedToHaveALabel");
           }
-          const ifNotLoaded: string | null | undefined = labels.get((parsedAction as any).notLoadedOffset);
-          if (ifNotLoaded === undefined) {
+          const loadingTarget: string | null | undefined = labels.get((parsedAction as any).notLoadedOffset);
+          if (loadingTarget === undefined) {
             throw new Error("ExpectedWaitForFrame2IfNotLoadedToHaveALabel");
           }
-          blocks.push({type: CfgBlockType.WaitForFrame2, label, actions, ifLoaded, ifNotLoaded});
+          blocks.push({label, actions, flow: {type: CfgFlowType.WaitForFrame2, readyTarget, loadingTarget}});
           continue iterateLabels;
         }
         default:
@@ -433,7 +441,7 @@ function buildCfg(
     if (next === undefined) {
       throw new Error("MissingLabel");
     }
-    blocks.push({type: CfgBlockType.Simple, label, actions, next});
+    blocks.push({label, actions, flow: {type: CfgFlowType.Simple, next}});
   }
   if (blocks.length === 0) {
     if (defaultNext === undefined) {
@@ -443,14 +451,16 @@ function buildCfg(
     if (label === null || label === undefined) {
       throw new Error("AssertionError: Expected empty block start label to have an id`");
     }
-    const head: CfgSimpleBlock = {
-      type: CfgBlockType.Simple,
+    const head: CfgBlock = {
       label,
       actions: [],
-      next: defaultNext,
+      flow: {
+        type: CfgFlowType.Simple,
+        next: defaultNext,
+      },
     };
-    return {head, tail: []};
+    return {blocks: [head]};
   } else {
-    return {head: blocks[0], tail: blocks.slice(1)};
+    return {blocks};
   }
 }

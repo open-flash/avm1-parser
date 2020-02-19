@@ -1,4 +1,4 @@
-import { $Cfg, Cfg } from "avm1-types/cfg";
+import { $Cfg, Cfg } from "avm1-types/cfg/cfg";
 import chai from "chai";
 import fs from "fs";
 import { JsonReader } from "kryo/readers/json";
@@ -16,7 +16,8 @@ const JSON_READER: JsonReader = new JsonReader();
 const JSON_VALUE_WRITER: JsonValueWriter = new JsonValueWriter();
 // `BLACKLIST` can be used to forcefully skip some tests.
 const BLACKLIST: ReadonlySet<string> = new Set([
-  // "avm1-bytes/corrupted-push",
+  "haxe/hello-world",
+  "wait-for-frame/homestuck-beta2",
 ]);
 // `WHITELIST` can be used to only enable a few tests.
 const WHITELIST: ReadonlySet<string> = new Set([

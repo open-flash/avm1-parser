@@ -1,13 +1,13 @@
 import { ReadableBitStream, ReadableByteStream } from "@open-flash/stream";
-import { Action } from "avm1-types/action";
 import { ActionType } from "avm1-types/action-type";
-import * as actions from "avm1-types/actions";
 import { CatchTarget } from "avm1-types/catch-target";
 import { CatchTargetType } from "avm1-types/catch-targets/_type";
 import { GetUrl2Method } from "avm1-types/get-url2-method";
 import { Parameter as DefineFunction2Parameter } from "avm1-types/parameter";
-import { Value } from "avm1-types/value";
-import { ValueType } from "avm1-types/value-type";
+import { PushValue as Value } from "avm1-types/push-value";
+import { PushValueType as ValueType } from "avm1-types/push-value-type";
+import { Action } from "avm1-types/raw/action";
+import * as actions from "avm1-types/raw/actions/index";
 import { Incident } from "incident";
 import { Uint16, Uint8, UintSize } from "semantic-types";
 
@@ -335,7 +335,7 @@ export function parseAction(byteStream: ReadableByteStream): Action {
       result = parseGotoFrame2Action(byteStream);
       break;
     default:
-      result = {action: ActionType.Unknown, code: header.actionCode, data: byteStream.takeBytes(header.length)};
+      result = {action: ActionType.Raw, code: header.actionCode, data: byteStream.takeBytes(header.length)};
       break;
   }
   const actionDataLength: number = byteStream.bytePos - actionDataStartPos;
@@ -355,8 +355,8 @@ export function parseGotoFrameAction(byteStream: ReadableByteStream): actions.Go
 }
 
 export function parseGetUrlAction(byteStream: ReadableByteStream): actions.GetUrl {
-  const url: string = byteStream.readCString();
-  const target: string = byteStream.readCString();
+  const url: string = byteStream.readNulUtf8();
+  const target: string = byteStream.readNulUtf8();
   return {
     action: ActionType.GetUrl,
     url,
@@ -374,28 +374,28 @@ export function parseStoreRegisterAction(byteStream: ReadableByteStream): action
 
 export function parseConstantPoolAction(byteStream: ReadableByteStream): actions.ConstantPool {
   const constantCount: UintSize = byteStream.readUint16LE();
-  const constantPool: string[] = [];
+  const pool: string[] = [];
   for (let i: number = 0; i < constantCount; i++) {
-    constantPool.push(byteStream.readCString());
+    pool.push(byteStream.readNulUtf8());
   }
   return {
     action: ActionType.ConstantPool,
-    constantPool,
+    pool,
   };
 }
 
 export function parseWaitForFrameAction(byteStream: ReadableByteStream): actions.WaitForFrame {
   const frame: UintSize = byteStream.readUint16LE();
-  const skipCount: UintSize = byteStream.readUint8();
+  const skip: UintSize = byteStream.readUint8();
   return {
     action: ActionType.WaitForFrame,
     frame,
-    skipCount,
+    skip,
   };
 }
 
 export function parseSetTargetAction(byteStream: ReadableByteStream): actions.SetTarget {
-  const targetName: string = byteStream.readCString();
+  const targetName: string = byteStream.readNulUtf8();
   return {
     action: ActionType.SetTarget,
     targetName,
@@ -403,7 +403,7 @@ export function parseSetTargetAction(byteStream: ReadableByteStream): actions.Se
 }
 
 export function parseGotoLabelAction(byteStream: ReadableByteStream): actions.GotoLabel {
-  const label: string = byteStream.readCString();
+  const label: string = byteStream.readNulUtf8();
   return {
     action: ActionType.GotoLabel,
     label,
@@ -411,15 +411,15 @@ export function parseGotoLabelAction(byteStream: ReadableByteStream): actions.Go
 }
 
 export function parseWaitForFrame2Action(byteStream: ReadableByteStream): actions.WaitForFrame2 {
-  const skipCount: UintSize = byteStream.readUint8();
+  const skip: UintSize = byteStream.readUint8();
   return {
     action: ActionType.WaitForFrame2,
-    skipCount,
+    skip,
   };
 }
 
 export function parseDefineFunction2Action(byteStream: ReadableByteStream): actions.DefineFunction2 {
-  const name: string = byteStream.readCString();
+  const name: string = byteStream.readNulUtf8();
   const parameterCount: UintSize = byteStream.readUint16LE();
   const registerCount: UintSize = byteStream.readUint8();
 
@@ -438,7 +438,7 @@ export function parseDefineFunction2Action(byteStream: ReadableByteStream): acti
   const parameters: DefineFunction2Parameter[] = [];
   for (let i: number = 0; i < parameterCount; i++) {
     const register: Uint8 = byteStream.readUint8();
-    const name: string = byteStream.readCString();
+    const name: string = byteStream.readNulUtf8();
     parameters.push({register, name});
   }
   const bodySize: Uint16 = byteStream.readUint16LE();
@@ -465,7 +465,7 @@ function parseCatchTarget(byteStream: ReadableByteStream, catchInRegister: boole
   if (catchInRegister) {
     return {type: CatchTargetType.Register, target: byteStream.readUint8()};
   } else {
-    return {type: CatchTargetType.Variable, target: byteStream.readCString()};
+    return {type: CatchTargetType.Variable, target: byteStream.readNulUtf8()};
   }
 }
 
@@ -482,18 +482,17 @@ export function parseTryAction(byteStream: ReadableByteStream): actions.Try {
   const catchTarget: CatchTarget = parseCatchTarget(byteStream, catchInRegister);
   return {
     action: ActionType.Try,
-    trySize,
-    catchSize: hasCatchBlock ? catchSize : undefined,
-    catchTarget,
-    finallySize: hasFinallyBlock ? finallySize : undefined,
+    try: trySize,
+    catch: hasCatchBlock ? {target: catchTarget, size: catchSize} : undefined,
+    finally: hasFinallyBlock ? finallySize : undefined,
   };
 }
 
 export function parseWithAction(byteStream: ReadableByteStream): actions.With {
-  const withSize: Uint16 = byteStream.readUint16LE();
+  const size: Uint16 = byteStream.readUint16LE();
   return {
     action: ActionType.With,
-    withSize,
+    size,
   };
 }
 
@@ -516,7 +515,7 @@ export function parseActionValue(byteStream: ReadableByteStream): Value {
   const typeCode: Uint8 = byteStream.readUint8();
   switch (typeCode) {
     case 0:
-      return {type: ValueType.String, value: byteStream.readCString()};
+      return {type: ValueType.String, value: byteStream.readNulUtf8()};
     case 1:
       return {type: ValueType.Float32, value: byteStream.readFloat32LE()};
     case 2:
@@ -580,11 +579,11 @@ export function parseGetUrl2Action(byteStream: ReadableByteStream): actions.GetU
 }
 
 export function parseDefineFunctionAction(byteStream: ReadableByteStream): actions.DefineFunction {
-  const name: string = byteStream.readCString();
+  const name: string = byteStream.readNulUtf8();
   const parameterCount: UintSize = byteStream.readUint16LE();
   const parameters: string[] = [];
   for (let i: number = 0; i < parameterCount; i++) {
-    parameters.push(byteStream.readCString());
+    parameters.push(byteStream.readNulUtf8());
   }
   const bodySize: Uint16 = byteStream.readUint16LE();
 

@@ -7,13 +7,12 @@ mod cfg;
 
 #[cfg(test)]
 mod parser_tests {
-  use ::avm1_types::Action;
+  use super::*;
+  use ::avm1_types as avm1;
   use ::test_generator::test_resources;
+  use avm1_types::cfg::Cfg;
   use std::io::{Read, Write};
   use std::path::Path;
-
-  use super::*;
-  use avm1_types::Cfg;
 
   #[test_resources("../tests/actions/*.avm1")]
   fn test_parse_action(path: &str) {
@@ -28,7 +27,7 @@ mod parser_tests {
 
     let json_file = ::std::fs::File::open(json_path).unwrap();
     let reader = ::std::io::BufReader::new(json_file);
-    let expected_action: Action = serde_json_v8::from_reader(reader).unwrap();
+    let expected_action: avm1::raw::Action = serde_json_v8::from_reader(reader).unwrap();
 
     assert_eq!(actual_action, expected_action);
   }
@@ -38,7 +37,7 @@ mod parser_tests {
     use serde::Serialize;
 
     let path: &Path = Path::new(path);
-    let name = path
+    let _name = path
       .components()
       .last()
       .unwrap()
@@ -46,9 +45,9 @@ mod parser_tests {
       .to_str()
       .expect("Failed to retrieve sample name");
 
-    if name == "hello-world" || name == "homestuck-beta2" {
-      return;
-    }
+    //    if name == "hello-world" || name == "homestuck-beta2" {
+    //      return;
+    //    }
 
     let avm1_path = path.join("main.avm1");
     let avm1_bytes: Vec<u8> = ::std::fs::read(avm1_path).expect("Failed to read input");
