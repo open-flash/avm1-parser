@@ -52,7 +52,7 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
   // associated count. The count is usually 1, except in the case of overlapping
   // linear flow.
   const simpleTargets: Map<UintSize, number> = new Map();
-  // Offsets of known `EndOfAction` (TODO: define a corresponding raw action)
+  // Offsets of known `EndOfAction`
   const endOfActions: Set<UintSize> = new Set();
 
   function incSimpleTarget(target: UintSize): void {
@@ -83,15 +83,14 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
     const nextOffsets: Set<UintSize> = new Set();
     switch (raw.action) {
       case ActionType.DefineFunction:
-        nextOffsets.add(endOffset + raw.bodySize);
-        parsed.set(curOffset, {raw, endOffset});
-        incSimpleTarget(endOffset + raw.bodySize);
+      case ActionType.DefineFunction2: {
+        const afterFn: UintSize = endOffset + raw.bodySize;
+        const body: Cfg = parseHardBlock(parser, endOffset, afterFn, idp);
+        nextOffsets.add(afterFn);
+        parsed.set(curOffset, {raw, body, endOffset} as any);
+        incSimpleTarget(afterFn);
         break;
-      case ActionType.DefineFunction2:
-        nextOffsets.add(endOffset + raw.bodySize);
-        parsed.set(curOffset, {raw, endOffset});
-        incSimpleTarget(endOffset + raw.bodySize);
-        break;
+      }
       case ActionType.If: {
         nextOffsets.add(endOffset + raw.offset);
         nextOffsets.add(endOffset);
@@ -113,19 +112,22 @@ function parseSoftBlock(parser: Avm1Parser, blockStart: UintSize, blockEnd: Uint
         parsed.set(curOffset, {raw, endOffset});
         break;
       case ActionType.Try: {
-        let tryOffset: UintSize = endOffset;
-        const softTry: SoftBlock = parseSoftBlock(parser, tryOffset, tryOffset + raw.trySize, idp);
-        tryOffset += raw.trySize;
-        let softCatch: SoftBlock | undefined;
-        if (raw.catchSize !== undefined) {
-          softCatch = parseSoftBlock(parser, tryOffset, tryOffset + raw.catchSize, idp);
-          tryOffset += raw.catchSize;
-        }
+        const tryStart: UintSize = endOffset;
+        const catchStart: UintSize = tryStart + raw.trySize;
+        const finallyStart: UintSize = catchStart + (raw.catchSize !== undefined ? raw.catchSize : 0);
+
         let softFinally: SoftBlock | undefined;
         if (raw.finallySize !== undefined) {
-          softFinally = parseSoftBlock(parser, tryOffset, tryOffset + raw.finallySize, idp);
-          tryOffset += raw.finallySize;
+          softFinally = parseSoftBlock(parser, finallyStart, finallyStart + raw.finallySize, idp);
         }
+
+        const softTry: SoftBlock = parseSoftBlock(parser, tryStart, tryStart + raw.trySize, idp);
+
+        let softCatch: SoftBlock | undefined;
+        if (raw.catchSize !== undefined) {
+          softCatch = parseSoftBlock(parser, catchStart, catchStart + raw.catchSize, idp);
+        }
+
         for (const outJump of softTry.outJumps) {
           nextOffsets.add(outJump);
           jumpTargets.add(outJump);
@@ -282,19 +284,19 @@ function buildCfg(
       switch (parsedAction.raw.action) {
         case ActionType.DefineFunction: {
           const bodyEnd: UintSize = parsedAction.endOffset + parsedAction.raw.bodySize;
-          const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd, idp);
+          // const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd, idp);
           actions.push({
             action: ActionType.DefineFunction,
             name: parsedAction.raw.name,
             parameters: parsedAction.raw.parameters,
-            body: cfg,
+            body: (parsedAction as any).body,
           });
           offset = bodyEnd;
           break;
         }
         case ActionType.DefineFunction2: {
           const bodyEnd: UintSize = parsedAction.endOffset + parsedAction.raw.bodySize;
-          const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd, idp);
+          // const cfg: Cfg = parseHardBlock(parser, parsedAction.endOffset, bodyEnd, idp);
           actions.push({
             action: ActionType.DefineFunction2,
             name: parsedAction.raw.name,
@@ -309,7 +311,7 @@ function buildCfg(
             preloadGlobal: parsedAction.raw.preloadGlobal,
             registerCount: parsedAction.raw.registerCount,
             parameters: parsedAction.raw.parameters,
-            body: cfg,
+            body: (parsedAction as any).body,
           });
           offset = bodyEnd;
           break;
@@ -319,7 +321,8 @@ function buildCfg(
           continue iterateLabels;
         }
         case ActionType.Error: {
-          blocks.push({type: CfgBlockType.Error, label, actions, error: parsedAction.raw.error});
+          // TODO: Propagate error
+          blocks.push({type: CfgBlockType.Error, label, actions, error: undefined});
           continue iterateLabels;
         }
         case ActionType.If: {

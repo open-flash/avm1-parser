@@ -1,5 +1,7 @@
 # Next
 
+- **[Breaking change]** Use DFS order for layer numbering.
+
 ## Rust
 
 - **[Fix]** Update to `nom@5`.
