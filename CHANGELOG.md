@@ -4,6 +4,7 @@
 
 ## Rust
 
+- **[Feature]** Implement CFG parser.
 - **[Fix]** Update to `nom@5`.
 
 # 0.9.1 (2019-09-28)

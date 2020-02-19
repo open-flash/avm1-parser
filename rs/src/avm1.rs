@@ -298,6 +298,7 @@ pub fn parse_goto_frame2_action(input: &[u8]) -> NomResult<&[u8], ast::actions::
   ))
 }
 
+// TODO: Return `(&[u8], ast::Action)` (the function should never fail)
 pub fn parse_action(input: &[u8]) -> NomResult<&[u8], ast::Action> {
   let base_input = input; // Keep original input to compute lengths.
 
