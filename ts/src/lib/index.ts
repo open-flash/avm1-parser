@@ -1,9 +1,9 @@
 import { ReadableStream } from "@open-flash/stream";
+import { ActionType } from "avm1-types/action-type";
 import { Action as RawAction } from "avm1-types/raw/action";
 import { UintSize } from "semantic-types";
-import { ActionHeader, parseAction, parseActionHeader } from "./parsers/avm1";
-
-export { cfgFromBytes } from "./cfg-from-bytes";
+import { ActionHeader, parseAction, parseActionHeader } from "./avm1";
+export { parseCfg } from "./cfg";
 
 export class Avm1Parser {
   private readonly stream: ReadableStream;
@@ -16,17 +16,17 @@ export class Avm1Parser {
     return this.stream.bytePos;
   }
 
-  readNext(): RawAction | undefined {
-    if (this.stream.bytePos === this.stream.byteEnd) {
-      return undefined;
+  readNext(): RawAction {
+    if (this.stream.bytePos >= this.stream.byteEnd) {
+      return {action: ActionType.End};
     } else if (this.stream.peekUint8() === 0) {
       this.stream.bytePos += 1;
-      return undefined;
+      return {action: ActionType.End};
     }
     return parseAction(this.stream);
   }
 
-  readAt(offset: UintSize): RawAction | undefined {
+  readAt(offset: UintSize): RawAction {
     this.stream.bytePos = offset;
     return this.readNext();
   }

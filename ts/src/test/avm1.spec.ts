@@ -4,7 +4,7 @@ import fs from "fs";
 import { JsonReader } from "kryo/readers/json";
 import { JsonValueWriter } from "kryo/writers/json-value";
 import sysPath from "path";
-import { cfgFromBytes } from "../lib";
+import { parseCfg } from "../lib";
 import meta from "./meta.js";
 import { readFile, readTextFile, writeTextFile } from "./utils";
 
@@ -16,11 +16,13 @@ const JSON_READER: JsonReader = new JsonReader();
 const JSON_VALUE_WRITER: JsonValueWriter = new JsonValueWriter();
 // `BLACKLIST` can be used to forcefully skip some tests.
 const BLACKLIST: ReadonlySet<string> = new Set([
-  "haxe/hello-world",
-  "wait-for-frame/homestuck-beta2",
+  // "haxe/hello-world",
+  // "wait-for-frame/homestuck-beta2",
 ]);
 // `WHITELIST` can be used to only enable a few tests.
 const WHITELIST: ReadonlySet<string> = new Set([
+  // "avm1-bytes/corrupted-push",
+  // "with/with-shadow",
   // "avm1-bytes/misaligned-jump",
   // "try/try-catch-err",
   // "try/try-ok",
@@ -33,7 +35,7 @@ describe("avm1", function () {
   for (const sample of getSamples()) {
     it(sample.name, async function () {
       const inputBytes: Buffer = await readFile(sample.avm1Path);
-      const actualCfg: Cfg = cfgFromBytes(inputBytes);
+      const actualCfg: Cfg = parseCfg(inputBytes);
       const testErr: Error | undefined = $Cfg.testError!(actualCfg);
       try {
         chai.assert.isUndefined(testErr, "InvalidCfg");
@@ -41,17 +43,14 @@ describe("avm1", function () {
         console.error(testErr!.toString());
         throw err;
       }
-      const actualJson: string = JSON.stringify($Cfg.write(JSON_VALUE_WRITER, actualCfg), null, 2);
-      await writeTextFile(sysPath.join(sample.root, "local-cfg.ts.json"), `${actualJson}\n`);
+      const actualCfgJson: string = `${JSON.stringify($Cfg.write(JSON_VALUE_WRITER, actualCfg), null, 2)}\n`;
+      await writeTextFile(sysPath.join(sample.root, "local-cfg.ts.json"), actualCfgJson);
       const expectedCfgJson: string = await readTextFile(sample.cfgPath);
       const expectedCfg: Cfg = $Cfg.read(JSON_READER, expectedCfgJson);
       try {
         chai.assert.isTrue($Cfg.equals(actualCfg, expectedCfg));
       } catch (err) {
-        chai.assert.strictEqual(
-          actualJson,
-          JSON.stringify($Cfg.write(JSON_VALUE_WRITER, expectedCfg), null, 2),
-        );
+        chai.assert.deepEqual(actualCfgJson, expectedCfgJson);
         throw err;
       }
     });
