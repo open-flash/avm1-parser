@@ -1,4 +1,4 @@
-# Next
+# 0.10.0 (2020-02-20)
 
 - **[Breaking change]** Update to `avm1-types@0.10.0`.
 - **[Breaking change]** Use DFS order for layer numbering.
