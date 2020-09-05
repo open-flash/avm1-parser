@@ -14,7 +14,7 @@ export function readTestJson(path: string): any {
 
 export async function readTextFile(filePath: fs.PathLike): Promise<string> {
   return new Promise<string>((resolve, reject): void => {
-    fs.readFile(filePath, {encoding: "UTF-8"}, (err: NodeJS.ErrnoException | null, data: string): void => {
+    fs.readFile(filePath, {encoding: "utf-8"}, (err: NodeJS.ErrnoException | null, data: string): void => {
       if (err !== null) {
         reject(err);
       } else {

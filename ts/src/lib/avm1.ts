@@ -1,14 +1,14 @@
 import { ReadableBitStream, ReadableByteStream } from "@open-flash/stream";
-import { ActionType } from "avm1-types/action-type";
-import { CatchTarget } from "avm1-types/catch-target";
-import { CatchTargetType } from "avm1-types/catch-targets/_type";
-import { GetUrl2Method } from "avm1-types/get-url2-method";
-import { Parameter as DefineFunction2Parameter } from "avm1-types/parameter";
-import { PushValue as Value } from "avm1-types/push-value";
-import { PushValueType as ValueType } from "avm1-types/push-value-type";
-import { Action } from "avm1-types/raw/action";
-import * as actions from "avm1-types/raw/actions/index";
-import { Incident } from "incident";
+import { ActionType } from "avm1-types/lib/action-type.js";
+import { CatchTarget } from "avm1-types/lib/catch-target.js";
+import { CatchTargetType } from "avm1-types/lib/catch-targets/_type.js";
+import { GetUrl2Method } from "avm1-types/lib/get-url2-method.js";
+import { Parameter as DefineFunction2Parameter } from "avm1-types/lib/parameter.js";
+import { PushValue as Value } from "avm1-types/lib/push-value.js";
+import { PushValueType as ValueType } from "avm1-types/lib/push-value-type.js";
+import { Action } from "avm1-types/lib/raw/action.js";
+import * as actions from "avm1-types/lib/raw/actions/index.js";
+import incident from "incident";
 import { Uint16, Uint8, UintSize } from "semantic-types";
 
 export interface ActionHeader {
@@ -535,7 +535,7 @@ export function parseActionValue(byteStream: ReadableByteStream): Value {
     case 9:
       return {type: ValueType.Constant, value: byteStream.readUint16LE()};
     default:
-      throw new Incident("UnknownPushValueTypeCode", {typeCode});
+      throw new incident.Incident("UnknownPushValueTypeCode", {typeCode});
   }
 }
 
@@ -562,7 +562,7 @@ export function parseGetUrl2Action(byteStream: ReadableByteStream): actions.GetU
       method = GetUrl2Method.Post;
       break;
     default:
-      throw new Incident("UnexpectGetUrl2Method", "Unexpected value for the getUrl2 method");
+      throw new incident.Incident("UnexpectGetUrl2Method", "Unexpected value for the getUrl2 method");
   }
   bitStream.skipBits(4);
   const loadTarget: boolean = bitStream.readBoolBits();

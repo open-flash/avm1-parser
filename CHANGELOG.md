@@ -1,3 +1,9 @@
+# Next
+
+## TypeScript
+
+- **[Breaking change]** Update to native ESM.
+
 # 0.10.0 (2020-02-20)
 
 - **[Breaking change]** Update to `avm1-types@0.10.0`.

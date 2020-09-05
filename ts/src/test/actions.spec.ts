@@ -1,17 +1,14 @@
-import { $Action, Action } from "avm1-types/raw/action";
+import { $Action, Action } from "avm1-types/lib/raw/action.js";
 import chai from "chai";
 import fs from "fs";
-import { JsonReader } from "kryo/readers/json";
-import { JsonValueWriter } from "kryo/writers/json-value";
 import sysPath from "path";
-import { Avm1Parser } from "../lib";
+import { Avm1Parser } from "../lib/index.js";
 import meta from "./meta.js";
+import { JSON_READER } from "kryo-json/lib/json-reader.js";
+import { JSON_VALUE_WRITER } from "kryo-json/lib/json-value-writer.js";
 
-const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..", "..", "..");
+const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..");
 const TEST_SAMPLES_ROOT: string = sysPath.join(PROJECT_ROOT, "..", "tests");
-
-const JSON_READER: JsonReader = new JsonReader();
-const JSON_VALUE_WRITER: JsonValueWriter = new JsonValueWriter();
 
 describe("readJson", function () {
   for (const sample of getSamples()) {
@@ -22,7 +19,7 @@ describe("readJson", function () {
       );
       const expectedJson: string = fs.readFileSync(
         sysPath.join(TEST_SAMPLES_ROOT, "actions", `${sample.name}.json`),
-        {encoding: "UTF-8"},
+        {encoding: "utf-8"},
       );
       const expected: Action = $Action.read(JSON_READER, expectedJson);
       const parser: Avm1Parser = new Avm1Parser(input);
