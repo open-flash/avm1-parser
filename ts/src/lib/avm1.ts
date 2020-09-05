@@ -4,12 +4,12 @@ import { CatchTarget } from "avm1-types/lib/catch-target.js";
 import { CatchTargetType } from "avm1-types/lib/catch-targets/_type.js";
 import { GetUrl2Method } from "avm1-types/lib/get-url2-method.js";
 import { Parameter as DefineFunction2Parameter } from "avm1-types/lib/parameter.js";
-import { PushValue as Value } from "avm1-types/lib/push-value.js";
 import { PushValueType as ValueType } from "avm1-types/lib/push-value-type.js";
+import { PushValue as Value } from "avm1-types/lib/push-value.js";
 import { Action } from "avm1-types/lib/raw/action.js";
 import * as actions from "avm1-types/lib/raw/actions/index.js";
 import incident from "incident";
-import { Uint16, Uint8, UintSize } from "semantic-types";
+import { Uint8, Uint16, UintSize } from "semantic-types";
 
 export interface ActionHeader {
   actionCode: Uint8;

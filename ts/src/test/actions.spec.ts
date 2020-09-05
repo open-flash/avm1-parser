@@ -1,11 +1,12 @@
 import { $Action, Action } from "avm1-types/lib/raw/action.js";
 import chai from "chai";
 import fs from "fs";
-import sysPath from "path";
-import { Avm1Parser } from "../lib/index.js";
-import meta from "./meta.js";
 import { JSON_READER } from "kryo-json/lib/json-reader.js";
 import { JSON_VALUE_WRITER } from "kryo-json/lib/json-value-writer.js";
+import sysPath from "path";
+
+import { Avm1Parser } from "../lib/index.js";
+import meta from "./meta.js";
 
 const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..");
 const TEST_SAMPLES_ROOT: string = sysPath.join(PROJECT_ROOT, "..", "tests");

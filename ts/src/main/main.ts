@@ -2,6 +2,7 @@ import { $Action, Action } from "avm1-types";
 import * as fs from "fs";
 import { JsonValueWriter } from "kryo/writers/json-value";
 import * as sysPath from "path";
+
 import { parseBytes } from "../lib";
 
 async function main(): Promise<void> {

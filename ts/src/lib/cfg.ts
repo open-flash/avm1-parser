@@ -2,13 +2,14 @@ import { ActionType } from "avm1-types/lib/action-type.js";
 import { CatchTarget } from "avm1-types/lib/catch-target.js";
 import { Action as CfgAction } from "avm1-types/lib/cfg/action.js";
 import { CatchBlock } from "avm1-types/lib/cfg/catch-block.js";
-import { Cfg } from "avm1-types/lib/cfg/cfg.js";
 import { CfgBlock } from "avm1-types/lib/cfg/cfg-block.js";
-import { CfgFlow } from "avm1-types/lib/cfg/cfg-flow.js";
 import { CfgFlowType } from "avm1-types/lib/cfg/cfg-flow-type.js";
+import { CfgFlow } from "avm1-types/lib/cfg/cfg-flow.js";
 import { CfgLabel, NullableCfgLabel } from "avm1-types/lib/cfg/cfg-label.js";
+import { Cfg } from "avm1-types/lib/cfg/cfg.js";
 import { Action as RawAction } from "avm1-types/lib/raw/action.js";
 import { UintSize } from "semantic-types";
+
 import { Avm1Parser } from "./index.js";
 
 export function parseCfg(avm1: Uint8Array): Cfg {
@@ -194,6 +195,8 @@ type Parsed = ParsedAction | ParsedFlow;
 
 function innerParseCfg(parser: Avm1Parser, cx: ParseContext): Cfg {
   const parsedMap: Map<Avm1Index, Parsed> = new Map();
+
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const curOffset: Avm1Index | undefined = cx.popAction();
     if (curOffset === undefined) {
