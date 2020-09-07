@@ -8,7 +8,7 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
 name = "avm1-parser"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "avm1-types",
  "nom",
