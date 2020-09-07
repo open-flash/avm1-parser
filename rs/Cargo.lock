@@ -19,6 +19,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "avm1-parser-bin"
+version = "0.1.0"
+dependencies = [
+ "avm1-parser",
+ "avm1-types",
+ "serde_json_v8",
+]
+
+[[package]]
 name = "avm1-types"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

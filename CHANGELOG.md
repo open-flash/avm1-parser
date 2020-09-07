@@ -2,6 +2,10 @@
 
 - **[Breaking change]** Update to `avm1-types@0.11.0`.
 
+## Rust
+
+- **[Internal]** Move binary out of the library crate.
+
 ## TypeScript
 
 - **[Breaking change]** Update to native ESM.
