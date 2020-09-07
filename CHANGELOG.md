@@ -1,5 +1,7 @@
 # Next
 
+- **[Breaking change]** Update to `avm1-types@0.11.0`.
+
 ## TypeScript
 
 - **[Breaking change]** Update to native ESM.
