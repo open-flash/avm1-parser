@@ -1,4 +1,4 @@
-# Next
+# 0.12.0 (2021-05-05)
 
 - **[Breaking change]** Update to `avm1-types@0.12.0`.
 - **[Feature]** Add support for the `StrictMode` action.
