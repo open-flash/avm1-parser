@@ -1,9 +1,8 @@
-use crate::basic_data_types::parse_c_string;
+use crate::basic_data_types::{parse_c_string, parse_le32_f64};
 use avm1_types as avm1;
 use avm1_types::raw;
 use nom::number::complete::{
-  le_f32 as parse_le_f32, le_f64 as parse_le_f64, le_i16 as parse_le_i16, le_i32 as parse_le_i32,
-  le_u16 as parse_le_u16, le_u8 as parse_u8,
+  le_f32 as parse_le_f32, le_i16 as parse_le_i16, le_i32 as parse_le_i32, le_u16 as parse_le_u16, le_u8 as parse_u8,
 };
 use nom::{IResult as NomResult, Needed};
 use std::convert::TryFrom;
@@ -44,12 +43,7 @@ pub fn parse_action_header(input: &[u8]) -> NomResult<&[u8], ActionHeader> {
 
 pub fn parse_goto_frame_action(input: &[u8]) -> NomResult<&[u8], raw::GotoFrame> {
   let (input, frame) = parse_le_u16(input)?;
-  Ok((
-    input,
-    raw::GotoFrame {
-      frame: usize::from(frame),
-    },
-  ))
+  Ok((input, raw::GotoFrame { frame }))
 }
 
 pub fn parse_get_url_action(input: &[u8]) -> NomResult<&[u8], raw::GetUrl> {
@@ -63,6 +57,16 @@ pub fn parse_store_register_action(input: &[u8]) -> NomResult<&[u8], raw::StoreR
   Ok((input, raw::StoreRegister { register }))
 }
 
+pub fn parse_strict_mode_action(input: &[u8]) -> NomResult<&[u8], raw::StrictMode> {
+  let (input, is_strict) = parse_u8(input)?;
+  Ok((
+    input,
+    raw::StrictMode {
+      is_strict: is_strict != 0,
+    },
+  ))
+}
+
 pub fn parse_constant_pool_action(input: &[u8]) -> NomResult<&[u8], raw::ConstantPool> {
   use nom::multi::count;
   let (input, const_count) = parse_le_u16(input)?;
@@ -73,13 +77,7 @@ pub fn parse_constant_pool_action(input: &[u8]) -> NomResult<&[u8], raw::Constan
 pub fn parse_wait_for_frame_action(input: &[u8]) -> NomResult<&[u8], raw::WaitForFrame> {
   let (input, frame) = parse_le_u16(input)?;
   let (input, skip) = parse_u8(input)?;
-  Ok((
-    input,
-    raw::WaitForFrame {
-      frame,
-      skip: usize::from(skip),
-    },
-  ))
+  Ok((input, raw::WaitForFrame { frame, skip }))
 }
 
 pub fn parse_set_target_action(input: &[u8]) -> NomResult<&[u8], raw::SetTarget> {
@@ -94,12 +92,7 @@ pub fn parse_goto_label_action(input: &[u8]) -> NomResult<&[u8], raw::GoToLabel>
 
 pub fn parse_wait_for_frame2_action(input: &[u8]) -> NomResult<&[u8], raw::WaitForFrame2> {
   let (input, skip) = parse_u8(input)?;
-  Ok((
-    input,
-    raw::WaitForFrame2 {
-      skip: usize::from(skip),
-    },
-  ))
+  Ok((input, raw::WaitForFrame2 { skip }))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -226,7 +219,7 @@ fn parse_push_value(input: &[u8]) -> NomResult<&[u8], avm1::PushValue> {
     3 => Ok((input, avm1::PushValue::Undefined)),
     4 => map(parse_u8, avm1::PushValue::Register)(input),
     5 => map(parse_u8, |v| avm1::PushValue::Boolean(v != 0))(input),
-    6 => map(parse_le_f64, avm1::PushValue::Float64)(input),
+    6 => map(parse_le32_f64, avm1::PushValue::Float64)(input),
     7 => map(parse_le_i32, avm1::PushValue::Sint32)(input),
     8 => map(parse_u8, |v| avm1::PushValue::Constant(u16::from(v)))(input),
     9 => map(parse_le_u16, avm1::PushValue::Constant)(input),
@@ -297,7 +290,7 @@ pub fn parse_goto_frame2_action(input: &[u8]) -> NomResult<&[u8], raw::GotoFrame
     input,
     raw::GotoFrame2 {
       play,
-      scene_bias: scene_bias.map(usize::from).unwrap_or_default(),
+      scene_bias: scene_bias.unwrap_or_default(),
     },
   ))
 }
@@ -409,6 +402,7 @@ fn parse_action_body(input: &[u8], code: u8) -> raw::Action {
     0x83 => map(parse_get_url_action, raw::Action::GetUrl)(input),
     0x87 => map(parse_store_register_action, raw::Action::StoreRegister)(input),
     0x88 => map(parse_constant_pool_action, raw::Action::ConstantPool)(input),
+    0x89 => map(parse_strict_mode_action, raw::Action::StrictMode)(input),
     0x8a => map(parse_wait_for_frame_action, raw::Action::WaitForFrame)(input),
     0x8b => map(parse_set_target_action, raw::Action::SetTarget)(input),
     0x8c => map(parse_goto_label_action, raw::Action::GotoLabel)(input),

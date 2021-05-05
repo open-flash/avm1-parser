@@ -16,18 +16,18 @@ name = "avm1_parser"
 path = "src/lib.rs"
 
 [dependencies]
-avm1-types = { version = "^0.11.0", default-features = false }
+avm1-types = { version = "^0.12.0", default-features = false }
 nom = "^5.1.2"
 vec1 = "^1.6.0"
 
 [dev-dependencies]
-avm1-types = { version = "^0.11.0", default-features = true }
+avm1-types = { version = "^0.12.0", default-features = true }
 serde = "^1.0.115"
-serde_json_v8 = "^0.0.1"
+serde_json_v8 = "^0.1.1"
 test-generator = "^0.3.0"
 
-# [replace]
-# "avm1-types:0.9.0" = { path = '../../avm1-types/rs' }
+#[replace]
+#"avm1-types:0.11.0" = { path = '../../avm1-types/rs' }
 
 [workspace]
 members = ["bin"]

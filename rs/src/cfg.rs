@@ -663,22 +663,6 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         let catch_start: Avm1Index = try_start + usize::from(action.r#try);
         let finally_start: Avm1Index = catch_start + action.catch.as_ref().map_or(0, |c| usize::from(c.size));
 
-        //        let try_range: Avm1Range = end_offset..(end_offset + usize::from(action.try_size));
-        //        let mut next_offset = try_range.end;
-        //        let catch_range: Option<Avm1Range> = if let Some(catch_size) = action.catch_size {
-        //          let catch_range = next_offset..(next_offset + usize::from(catch_size));
-        //          next_offset = catch_range.end;
-        //          Some(catch_range)
-        //        } else {
-        //          None
-        //        };
-        //        let finally_range: Option<Avm1Range> = if let Some(finally_size) = action.finally_size {
-        //          let finally_range = next_offset..(next_offset + usize::from(finally_size));
-        //          Some(finally_range)
-        //        } else {
-        //          None
-        //        };
-
         let finally: Option<Cfg> = if let Some(finally_size) = action.finally {
           traversal.push_layer(finally_start..(finally_start + usize::from(finally_size)));
           Some(parse_into_cfg(parser, traversal))
@@ -718,7 +702,7 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         Parsed::Action(end_offset, cfg::Action::Raw(action))
       }
       raw::Action::WaitForFrame(action) => {
-        let loading_offset = parser.skip(end_offset, action.skip);
+        let loading_offset = parser.skip(end_offset, usize::from(action.skip));
         let loading_target = traversal.jump(loading_offset);
         let ready_target = traversal.jump(end_offset);
         let wff = cfg::WaitForFrame {
@@ -729,7 +713,7 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         Parsed::Flow(CfgFlow::WaitForFrame(wff))
       }
       raw::Action::WaitForFrame2(action) => {
-        let loading_offset = parser.skip(end_offset, action.skip);
+        let loading_offset = parser.skip(end_offset, usize::from(action.skip));
         let loading_target = traversal.jump(loading_offset);
         let ready_target = traversal.jump(end_offset);
         let wff = cfg::WaitForFrame2 {

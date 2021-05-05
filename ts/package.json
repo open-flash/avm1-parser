@@ -17,32 +17,23 @@
     "type": "git",
     "url": "git@github.com:open-flash/avm1-parser.git"
   },
-  "type": "module",
-  "main": "./lib/index.js",
-  "module": "./lib/index.js",
-  "files": [
-    "./lib/"
-  ],
-  "exports": {
-    ".": "./lib/index.js",
-    "./lib/": "./lib/"
-  },
   "scripts": {
-    "build": "tsc --build src/lib/tsconfig.json",
-    "pretest": "tsc --build src/test/tsconfig.json",
-    "test": "mocha \"test/**/*.spec.js\"",
-    "posttest": "yarn run lint",
+    "clean": "rimraf \"./@(lib|test)\"",
     "lint": "eslint \"./src/**/*.ts\"",
     "format": "eslint --fix \"./src/**/*.ts\"",
-    "prestart": "tsc --build src/main/tsconfig.json",
-    "start": "node ./main/main.js"
+    "build": "tsc --build src/lib/tsconfig.json",
+    "prepack": "yarn run build",
+    "test:build": "tsc --build src/test/tsconfig.json",
+    "test": "yarn run test:build && mocha \"test/**/*.spec.js\"",
+    "main:build": "tsc --build src/main/tsconfig.json",
+    "start": "yarn run main:build && node \"main/main.js\""
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=14.13.1"
   },
   "dependencies": {
-    "@open-flash/stream": "^0.3.0",
-    "avm1-types": "^0.11.0",
+    "@open-flash/stream": "^0.4.0",
+    "avm1-types": "^0.12.0",
     "incident": "^3.2.1",
     "semantic-types": "^0.1.1"
   },
@@ -61,10 +52,15 @@
     "rimraf": "^3.0.2",
     "typescript": "^4.0.2"
   },
-  "c88": {
-    "match": [
-      "./lib/*.{js,mjs}",
-      "./lib/**/*.{js,mjs}"
-    ]
-  }
+  "type": "module",
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib/": "./lib/"
+  },
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "files": [
+    "./lib/"
+  ]
 }
