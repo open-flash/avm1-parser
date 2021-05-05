@@ -292,6 +292,9 @@ export function parseAction(byteStream: ReadableByteStream): Action {
     case 0x88:
       result = parseConstantPoolAction(byteStream);
       break;
+    case 0x89:
+      result = parseStrictModeAction(byteStream);
+      break;
     case 0x8a:
       result = parseWaitForFrameAction(byteStream);
       break;
@@ -384,13 +387,11 @@ export function parseConstantPoolAction(byteStream: ReadableByteStream): actions
   };
 }
 
-export function parseWaitForFrameAction(byteStream: ReadableByteStream): actions.WaitForFrame {
-  const frame: UintSize = byteStream.readUint16LE();
-  const skip: UintSize = byteStream.readUint8();
+export function parseGotoLabelAction(byteStream: ReadableByteStream): actions.GotoLabel {
+  const label: string = byteStream.readNulUtf8();
   return {
-    action: ActionType.WaitForFrame,
-    frame,
-    skip,
+    action: ActionType.GotoLabel,
+    label,
   };
 }
 
@@ -402,11 +403,21 @@ export function parseSetTargetAction(byteStream: ReadableByteStream): actions.Se
   };
 }
 
-export function parseGotoLabelAction(byteStream: ReadableByteStream): actions.GotoLabel {
-  const label: string = byteStream.readNulUtf8();
+export function parseStrictModeAction(byteStream: ReadableByteStream): actions.StrictMode {
+  const isStrict: boolean = byteStream.readUint8() !== 0;
   return {
-    action: ActionType.GotoLabel,
-    label,
+    action: ActionType.StrictMode,
+    isStrict,
+  };
+}
+
+export function parseWaitForFrameAction(byteStream: ReadableByteStream): actions.WaitForFrame {
+  const frame: UintSize = byteStream.readUint16LE();
+  const skip: UintSize = byteStream.readUint8();
+  return {
+    action: ActionType.WaitForFrame,
+    frame,
+    skip,
   };
 }
 
@@ -527,7 +538,7 @@ export function parseActionValue(byteStream: ReadableByteStream): Value {
     case 5:
       return {type: ValueType.Boolean, value: byteStream.readUint8() !== 0};
     case 6:
-      return {type: ValueType.Float64, value: byteStream.readFloat64LE()};
+      return {type: ValueType.Float64, value: byteStream.readFloat64LE32()};
     case 7:
       return {type: ValueType.Sint32, value: byteStream.readSint32LE()};
     case 8:
