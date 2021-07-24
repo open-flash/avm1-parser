@@ -1,13 +1,13 @@
-import { ActionType } from "avm1-types/lib/action-type.js";
-import { CatchTarget } from "avm1-types/lib/catch-target.js";
-import { Action as CfgAction } from "avm1-types/lib/cfg/action.js";
-import { CatchBlock } from "avm1-types/lib/cfg/catch-block.js";
-import { CfgBlock } from "avm1-types/lib/cfg/cfg-block.js";
-import { CfgFlowType } from "avm1-types/lib/cfg/cfg-flow-type.js";
-import { CfgFlow } from "avm1-types/lib/cfg/cfg-flow.js";
-import { CfgLabel, NullableCfgLabel } from "avm1-types/lib/cfg/cfg-label.js";
-import { Cfg } from "avm1-types/lib/cfg/cfg.js";
-import { Action as RawAction } from "avm1-types/lib/raw/action.js";
+import { ActionType } from "avm1-types/action-type";
+import { CatchTarget } from "avm1-types/catch-target";
+import { Action as CfgAction } from "avm1-types/cfg/action";
+import { CatchBlock } from "avm1-types/cfg/catch-block";
+import { Cfg } from "avm1-types/cfg/cfg";
+import { CfgBlock } from "avm1-types/cfg/cfg-block";
+import { CfgFlow } from "avm1-types/cfg/cfg-flow";
+import { CfgFlowType } from "avm1-types/cfg/cfg-flow-type";
+import { CfgLabel, NullableCfgLabel } from "avm1-types/cfg/cfg-label";
+import { Action as RawAction } from "avm1-types/raw/action";
 import { UintSize } from "semantic-types";
 
 import { Avm1Parser } from "./index.js";
