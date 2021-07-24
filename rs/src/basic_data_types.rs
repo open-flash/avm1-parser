@@ -11,7 +11,10 @@ pub(crate) fn parse_c_string(input: &[u8]) -> NomResult<&[u8], String> {
 
   match std::str::from_utf8(raw) {
     Ok(checked) => Ok((input, checked.to_string())),
-    Err(_) => Err(nom::Err::Error((input, nom::error::ErrorKind::Verify))),
+    Err(_) => Err(nom::Err::Error(nom::error::Error::new(
+      input,
+      nom::error::ErrorKind::Verify,
+    ))),
   }
 }
 
