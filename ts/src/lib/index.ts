@@ -1,9 +1,10 @@
 import * as stream from "@open-flash/stream";
-import { ActionType } from "avm1-types/lib/action-type.js";
-import { Action as RawAction } from "avm1-types/lib/raw/action.js";
+import { ActionType } from "avm1-types/action-type";
+import { Action as RawAction } from "avm1-types/raw/action";
 import { UintSize } from "semantic-types";
 
 import { ActionHeader, parseAction, parseActionHeader } from "./avm1.js";
+
 export { parseCfg } from "./cfg.js";
 
 export class Avm1Parser {

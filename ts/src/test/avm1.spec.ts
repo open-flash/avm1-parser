@@ -1,8 +1,8 @@
-import { $Cfg, Cfg } from "avm1-types/lib/cfg/cfg.js";
+import { $Cfg, Cfg } from "avm1-types/cfg/cfg";
 import chai from "chai";
 import fs from "fs";
-import { JSON_READER } from "kryo-json/lib/json-reader.js";
-import { JSON_VALUE_WRITER } from "kryo-json/lib/json-value-writer.js";
+import { JSON_READER } from "kryo-json/json-reader";
+import { JSON_VALUE_WRITER } from "kryo-json/json-value-writer";
 import sysPath from "path";
 
 import { parseCfg } from "../lib/index.js";

@@ -1,3 +1,11 @@
+# Next
+
+## Typescript
+
+- **[Breaking change]** Update to `avm1-types@0.13`.
+- **[Breaking change]** Drop `lib` prefix and `.js` extension from deep-imports.
+- **[Fix]** Update dependencies.
+
 # 0.12.0 (2021-05-05)
 
 - **[Breaking change]** Update to `avm1-types@0.12.0`.
