@@ -1,5 +1,12 @@
 # Next
 
+## Rust
+
+- **[Breaking change]** Update to `swf-types@0.13`.
+- **[Breaking change]** Update to `nom@6`.
+- **[Fix]** Update dependencies.
+- **[Internal]** Add Clippy support.
+
 ## Typescript
 
 - **[Breaking change]** Update to `avm1-types@0.13`.

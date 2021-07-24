@@ -99,7 +99,7 @@ enum Reachability {
 }
 
 impl Reachability {
-  fn set_jump(&mut self) -> () {
+  fn set_jump(&mut self) {
     *self = Reachability::Jump
   }
 }
@@ -134,7 +134,7 @@ impl<'a> ParseContext<'a> {
     }
   }
 
-  fn push_layer(&mut self, range: Avm1Range) -> () {
+  fn push_layer(&mut self, range: Avm1Range) {
     let id: u64 = self.idg.next();
     let mut layer = LayerContext {
       id,
@@ -147,13 +147,13 @@ impl<'a> ParseContext<'a> {
     self.layers.push(layer);
   }
 
-  fn pop_layer(&mut self) -> () {
+  fn pop_layer(&mut self) {
     let top_layer = self.layers.pop();
     debug_assert!(top_layer.is_some());
   }
 
   /// Adds a path reaching `index` through linear flow
-  fn linear(&mut self, index: Avm1Index) -> () {
+  fn linear(&mut self, index: Avm1Index) {
     let top_layer = self.layers.last_mut().unwrap();
     let actions = &mut top_layer.actions;
     let new_actions = &mut top_layer.new_actions;
@@ -717,8 +717,8 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         let loading_target = traversal.jump(loading_offset);
         let ready_target = traversal.jump(end_offset);
         let wff = cfg::WaitForFrame2 {
-          loading_target,
           ready_target,
+          loading_target,
         };
         Parsed::Flow(CfgFlow::WaitForFrame2(wff))
       }

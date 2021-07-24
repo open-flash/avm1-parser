@@ -5,7 +5,7 @@ use nom::number::complete::{
   le_f32 as parse_le_f32, le_i16 as parse_le_i16, le_i32 as parse_le_i32, le_u16 as parse_le_u16, le_u8 as parse_u8,
 };
 use nom::{IResult as NomResult, Needed};
-use std::convert::TryFrom;
+use std::num::NonZeroUsize;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ActionHeader {
@@ -142,6 +142,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], raw::Defi
     input,
     raw::DefineFunction2 {
       name,
+      register_count,
       preload_this,
       suppress_this,
       preload_arguments,
@@ -151,7 +152,6 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], raw::Defi
       preload_root,
       preload_parent,
       preload_global,
-      register_count,
       parameters,
       body_size,
     },
@@ -223,7 +223,10 @@ fn parse_push_value(input: &[u8]) -> NomResult<&[u8], avm1::PushValue> {
     7 => map(parse_le_i32, avm1::PushValue::Sint32)(input),
     8 => map(parse_u8, |v| avm1::PushValue::Constant(u16::from(v)))(input),
     9 => map(parse_le_u16, avm1::PushValue::Constant)(input),
-    _ => Err(nom::Err::Error((input, nom::error::ErrorKind::Switch))),
+    _ => Err(nom::Err::Error(nom::error::Error::new(
+      input,
+      nom::error::ErrorKind::Switch,
+    ))),
   }
 }
 
@@ -243,7 +246,12 @@ pub fn parse_get_url2_action(input: &[u8]) -> NomResult<&[u8], raw::GetUrl2> {
     0 => avm1::GetUrl2Method::None,
     1 => avm1::GetUrl2Method::Get,
     2 => avm1::GetUrl2Method::Post,
-    _ => return Err(nom::Err::Error((input, nom::error::ErrorKind::Switch))),
+    _ => {
+      return Err(nom::Err::Error(nom::error::Error::new(
+        input,
+        nom::error::ErrorKind::Switch,
+      )))
+    }
   };
 
   Ok((
@@ -301,11 +309,13 @@ pub fn parse_action(input: &[u8]) -> NomResult<&[u8], raw::Action> {
 
   let (input, header) = parse_action_header(input)?;
 
-  let body_len = usize::try_from(header.length).unwrap();
+  let body_len = header.length;
   if input.len() < body_len {
     let header_len = base_input.len() - input.len();
     let action_len = header_len + body_len;
-    return Err(nom::Err::Incomplete(Needed::Size(action_len)));
+    return Err(nom::Err::Incomplete(Needed::Size(
+      NonZeroUsize::new(action_len).unwrap(),
+    )));
   }
   let (action_body, input) = input.split_at(body_len);
   let action = parse_action_body(action_body, header.code);
@@ -433,8 +443,6 @@ fn parse_action_body(input: &[u8], code: u8) -> raw::Action {
 
 #[cfg(test)]
 mod tests {
-  use nom;
-
   use super::*;
   use avm1_types::PushValue;
 
@@ -559,7 +567,7 @@ mod tests {
       let input = vec![0b10000000, 0b00000010, 0b00000000, 0b00000011];
       assert_eq!(
         parse_action(&input[..]),
-        Err(::nom::Err::Incomplete(nom::Needed::Size(5)))
+        Err(::nom::Err::Incomplete(nom::Needed::Size(NonZeroUsize::new(5).unwrap())))
       );
     }
   }
