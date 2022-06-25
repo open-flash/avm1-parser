@@ -5,16 +5,49 @@
 
 # AVM1 Parser
 
-[![npm](https://img.shields.io/npm/v/avm1-parser.svg)](https://www.npmjs.com/package/avm1-parser)
-[![crates.io](https://img.shields.io/crates/v/avm1-parser.svg)](https://crates.io/crates/avm1-parser)
-[![GitHub repository](https://img.shields.io/badge/Github-open--flash%2Favm1--parser-blue.svg)](https://github.com/open-flash/avm1-parser)
-[![Build status](https://img.shields.io/travis/com/open-flash/avm1-parser/master.svg)](https://travis-ci.com/open-flash/avm1-parser)
-
 AVM1 parser implemented in Rust and Typescript (Node and browser).
 Converts bytes to [`avm1-types` control flow graphs][avm1-types].
 
-- [Rust implementation](./rs/README.md)
-- [Typescript implementation](./ts/README.md)
+<table>
+<thead>
+  <tr>
+    <th>Implementation</th>
+    <th>Package</th>
+    <th>Checks</th>
+    <th>Documentation</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>
+      <a href="./rs/README.md">Rust</a>
+    </td>
+    <td>
+      <a href="https://crates.io/crates/avm1-parser"><img src="https://img.shields.io/crates/v/avm1-parser" alt="crates.io crate"/></a>
+    </td>
+    <td>
+      <a href="https://github.com/open-flash/avm1-parser/actions/workflows/check-rs.yml"><img src="https://img.shields.io/github/workflow/status/open-flash/avm1-parser/check-rs/main"  alt="Rust checks status"/></a>
+    </td>
+    <td>
+      <a href="https://docs.rs/avm1-parser"><img src="https://img.shields.io/badge/docs.rs-avm1--parser-informational" alt="docs.rs/avm1-parser"></a>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="./ts/README.md">TypeScript</a>
+    </td>
+    <td>
+      <a href="https://www.npmjs.com/package/avm1-parser"><img src="https://img.shields.io/npm/v/avm1-parser" alt="npm package"/></a>
+    </td>
+    <td>
+      <a href="https://github.com/open-flash/avm1-parser/actions/workflows/check-ts.yml"><img src="https://img.shields.io/github/workflow/status/open-flash/avm1-parser/check-ts/main"  alt="TypeScript checks status"/></a>
+    </td>
+    <td>
+      <a href="./ts/src/lib">Source Code ¯\_(ツ)_/¯</a>
+    </td>
+  </tr>
+</tbody>
+</table>
 
 This library is part of the [Open Flash][ofl] project.
 
