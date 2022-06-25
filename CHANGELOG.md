@@ -1,4 +1,4 @@
-# Next
+# 0.14.0 (2022-06-25)
 
 - **[Breaking change]** Update to `swf-types@0.14`.
 - **[Internal]** Migrate from Travis CI to GitHub Actions.
