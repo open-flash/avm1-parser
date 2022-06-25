@@ -517,7 +517,10 @@ export function parsePushAction(byteStream: ReadableByteStream): actions.Push | 
       action: ActionType.Push,
       values,
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    if (!(error instanceof Error)) {
+      throw error;
+    }
     return {action: ActionType.Error, error};
   }
 }

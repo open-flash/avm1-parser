@@ -3,9 +3,9 @@ import { ActionType } from "avm1-types/action-type";
 import { Action as RawAction } from "avm1-types/raw/action";
 import { UintSize } from "semantic-types";
 
-import { ActionHeader, parseAction, parseActionHeader } from "./avm1.js";
+import { ActionHeader, parseAction, parseActionHeader } from "./avm1.mjs";
 
-export { parseCfg } from "./cfg.js";
+export { parseCfg } from "./cfg.mjs";
 
 export class Avm1Parser {
   private readonly stream: stream.ReadableStream;

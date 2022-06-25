@@ -10,7 +10,7 @@ import { CfgLabel, NullableCfgLabel } from "avm1-types/cfg/cfg-label";
 import { Action as RawAction } from "avm1-types/raw/action";
 import { UintSize } from "semantic-types";
 
-import { Avm1Parser } from "./index.js";
+import { Avm1Parser } from "./index.mjs";
 
 export function parseCfg(avm1: Uint8Array): Cfg {
   const idg: IdGen = new IdGen();

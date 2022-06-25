@@ -5,8 +5,8 @@ import { JSON_READER } from "kryo-json/json-reader";
 import { JSON_VALUE_WRITER } from "kryo-json/json-value-writer";
 import sysPath from "path";
 
-import { Avm1Parser } from "../lib/index.js";
-import meta from "./meta.js";
+import { Avm1Parser } from "../lib/index.mjs";
+import meta from "./meta.mjs";
 
 const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..");
 const TEST_SAMPLES_ROOT: string = sysPath.join(PROJECT_ROOT, "..", "tests");

@@ -5,9 +5,9 @@ import { JSON_READER } from "kryo-json/json-reader";
 import { JSON_VALUE_WRITER } from "kryo-json/json-value-writer";
 import sysPath from "path";
 
-import { parseCfg } from "../lib/index.js";
-import meta from "./meta.js";
-import { readFile, readTextFile, writeTextFile } from "./utils.js";
+import { parseCfg } from "../lib/index.mjs";
+import meta from "./meta.mjs";
+import { readFile, readTextFile, writeTextFile } from "./utils.mjs";
 
 const PROJECT_ROOT: string = sysPath.join(meta.dirname, "..");
 const REPO_ROOT: string = sysPath.join(PROJECT_ROOT, "..");
