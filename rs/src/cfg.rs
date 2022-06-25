@@ -315,11 +315,11 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         traversal.linear(fn_range.end);
         Parsed::Action(
           fn_range.end,
-          cfg::Action::DefineFunction(cfg::DefineFunction {
+          cfg::Action::DefineFunction(Box::new(cfg::DefineFunction {
             name: action.name,
             parameters: action.parameters,
             body: cfg,
-          }),
+          })),
         )
       }
       raw::Action::DefineFunction2(action) => {
@@ -329,21 +329,13 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
         traversal.linear(fn_range.end);
         Parsed::Action(
           fn_range.end,
-          cfg::Action::DefineFunction2(cfg::DefineFunction2 {
+          cfg::Action::DefineFunction2(Box::new(cfg::DefineFunction2 {
             name: action.name,
             register_count: action.register_count,
-            preload_this: action.preload_this,
-            suppress_this: action.suppress_this,
-            preload_arguments: action.preload_arguments,
-            suppress_arguments: action.suppress_arguments,
-            preload_super: action.preload_super,
-            suppress_super: action.suppress_super,
-            preload_root: action.preload_root,
-            preload_parent: action.preload_parent,
-            preload_global: action.preload_global,
+            flags: action.flags,
             parameters: action.parameters,
             body: cfg,
-          }),
+          })),
         )
       }
       raw::Action::DefineLocal => {
@@ -691,7 +683,7 @@ fn parse_into_cfg(parser: &Avm1Parser, traversal: &mut ParseContext) -> Cfg {
           traversal.pop_layer();
         }
 
-        Parsed::Flow(CfgFlow::Try(cfg::Try { r#try, catch, finally }))
+        Parsed::Flow(CfgFlow::Try(Box::new(cfg::Try { r#try, catch, finally })))
       }
       raw::Action::TypeOf => {
         traversal.linear(end_offset);

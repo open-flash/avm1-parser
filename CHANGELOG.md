@@ -1,6 +1,13 @@
 # Next
 
+- **[Breaking change]** Update to `swf-types@0.14`.
 - **[Internal]** Migrate from Travis CI to GitHub Actions.
+
+## Rust
+
+- **[Breaking change]** Require Rust `1.60.0`.
+- **[Breaking change]** Update to `nom@7`.
+- **[Fix]** Update dependencies.
 
 # 0.13.0 (2021-07-24)
 

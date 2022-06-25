@@ -3,26 +3,27 @@ name = "avm1-parser"
 version = "0.13.0"
 authors = ["Charles Samborski <demurgos@demurgos.net>"]
 description = "AVM1 parser"
-documentation = "https://github.com/open-flash/avm1-parser"
+documentation = "https://docs.rs/avm1-parser"
 homepage = "https://github.com/open-flash/avm1-parser"
 repository = "https://github.com/open-flash/avm1-parser"
 readme = "./README.md"
 keywords = ["ast", "swf", "avm1"]
 license = "AGPL-3.0-or-later"
-edition = "2018"
+edition = "2021"
+rust-version = "1.60.0"
 
 [lib]
 name = "avm1_parser"
 path = "src/lib.rs"
 
 [dependencies]
-avm1-types = { version = "0.13.0", default-features = false }
-nom = "6.2.1"
+avm1-types = { version = "0.14.0", default-features = false }
+nom = "7.1.1"
 vec1 = "1.8.0"
 
 [dev-dependencies]
-avm1-types = { version = "0.13.0", default-features = true }
-serde = "1.0.126"
+avm1-types = { version = "0.14.0", default-features = true }
+serde = "1.0.137"
 serde_json_v8 = "0.1.1"
 test-generator = "0.3.0"
 

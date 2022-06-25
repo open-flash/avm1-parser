@@ -1,6 +1,6 @@
 use crate::basic_data_types::{parse_c_string, parse_le32_f64};
 use avm1_types as avm1;
-use avm1_types::raw;
+use avm1_types::{FunctionFlags, raw};
 use nom::number::complete::{
   le_f32 as parse_le_f32, le_i16 as parse_le_i16, le_i32 as parse_le_i32, le_u16 as parse_le_u16, le_u8 as parse_u8,
 };
@@ -117,17 +117,8 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], raw::Defi
   let (input, parameter_count) = parse_le_u16(input)?;
   let (input, register_count) = parse_u8(input)?;
 
-  let (input, flags) = parse_le_u16(input)?;
-  let preload_this = (flags & (1 << 0)) != 0;
-  let suppress_this = (flags & (1 << 1)) != 0;
-  let preload_arguments = (flags & (1 << 2)) != 0;
-  let suppress_arguments = (flags & (1 << 3)) != 0;
-  let preload_super = (flags & (1 << 4)) != 0;
-  let suppress_super = (flags & (1 << 5)) != 0;
-  let preload_root = (flags & (1 << 6)) != 0;
-  let preload_parent = (flags & (1 << 7)) != 0;
-  let preload_global = (flags & (1 << 8)) != 0;
-  // Skip bits [9, 15]
+  let (input, flag_bits) = parse_le_u16(input)?;
+  let flags = FunctionFlags::from_bits_truncate(flag_bits);
 
   let (input, parameters) = count(parse_parameter, usize::from(parameter_count))(input)?;
   fn parse_parameter(input: &[u8]) -> NomResult<&[u8], avm1::Parameter> {
@@ -143,15 +134,7 @@ pub fn parse_define_function2_action(input: &[u8]) -> NomResult<&[u8], raw::Defi
     raw::DefineFunction2 {
       name,
       register_count,
-      preload_this,
-      suppress_this,
-      preload_arguments,
-      suppress_arguments,
-      preload_super,
-      suppress_super,
-      preload_root,
-      preload_parent,
-      preload_global,
+      flags,
       parameters,
       body_size,
     },
@@ -409,7 +392,7 @@ fn parse_action_body(input: &[u8], code: u8) -> raw::Action {
     0x68 => Ok((input, raw::Action::StringGreater)),
     0x69 => Ok((input, raw::Action::Extends)),
     0x81 => map(parse_goto_frame_action, raw::Action::GotoFrame)(input),
-    0x83 => map(parse_get_url_action, raw::Action::GetUrl)(input),
+    0x83 => map(parse_get_url_action, |a| raw::Action::GetUrl(Box::new(a)))(input),
     0x87 => map(parse_store_register_action, raw::Action::StoreRegister)(input),
     0x88 => map(parse_constant_pool_action, raw::Action::ConstantPool)(input),
     0x89 => map(parse_strict_mode_action, raw::Action::StrictMode)(input),
@@ -417,22 +400,22 @@ fn parse_action_body(input: &[u8], code: u8) -> raw::Action {
     0x8b => map(parse_set_target_action, raw::Action::SetTarget)(input),
     0x8c => map(parse_goto_label_action, raw::Action::GotoLabel)(input),
     0x8d => map(parse_wait_for_frame2_action, raw::Action::WaitForFrame2)(input),
-    0x8e => map(parse_define_function2_action, raw::Action::DefineFunction2)(input),
-    0x8f => map(parse_try_action, raw::Action::Try)(input),
+    0x8e => map(parse_define_function2_action, |a| raw::Action::DefineFunction2(Box::new(a)))(input),
+    0x8f => map(parse_try_action, |a|raw::Action::Try(Box::new(a)))(input),
     0x94 => map(parse_with_action, raw::Action::With)(input),
     0x96 => map(parse_push_action, raw::Action::Push)(input),
     0x99 => map(parse_jump_action, raw::Action::Jump)(input),
     0x9a => map(parse_get_url2_action, raw::Action::GetUrl2)(input),
-    0x9b => map(parse_define_function_action, raw::Action::DefineFunction)(input),
+    0x9b => map(parse_define_function_action, |a|raw::Action::DefineFunction(Box::new(a)))(input),
     0x9d => map(parse_if_action, raw::Action::If)(input),
     0x9e => Ok((input, raw::Action::Call)),
     0x9f => map(parse_goto_frame2_action, raw::Action::GotoFrame2)(input),
     _ => Ok((
       &[][..],
-      raw::Action::Raw(raw::Raw {
+      raw::Action::Raw(Box::new(raw::Raw {
         code,
         data: input.to_vec(),
-      }),
+      })),
     )),
   };
   match result {
@@ -543,10 +526,10 @@ mod tests {
         parse_action(&input),
         Ok((
           &input[1..],
-          raw::Action::Raw(raw::Raw {
+          raw::Action::Raw(Box::new(raw::Raw {
             code: 0x01,
             data: Vec::new(),
-          })
+          }))
         ))
       );
     }
@@ -556,10 +539,10 @@ mod tests {
         parse_action(&input[..]),
         Ok((
           &input[4..],
-          raw::Action::Raw(raw::Raw {
+          raw::Action::Raw(Box::new(raw::Raw {
             code: 0x80,
             data: vec![0x03],
-          })
+          }))
         ))
       );
     }
